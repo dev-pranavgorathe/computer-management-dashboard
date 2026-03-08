@@ -11,6 +11,55 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+// ==================== ENUMS ====================
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  VIEWER
+  USER
+}
+
+enum ShipmentStatus {
+  PROCESSING
+  IN_TRANSIT
+  DELIVERED
+  PENDING
+  CANCELLED
+}
+
+enum ComplaintStatus {
+  PENDING
+  IN_PROGRESS
+  SOLVED
+  CLOSED
+}
+
+enum ComplaintPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum RepossessionStatus {
+  PENDING
+  SCHEDULED
+  COLLECTED
+  COMPLETED
+  CANCELLED
+}
+
+enum RedeploymentStatus {
+  PROCESSING
+  SCHEDULED
+  DEPLOYED
+  COMPLETED
+  CANCELLED
+}
+
+// ==================== MODELS ====================
+
 model User {
   id            String    @id @default(cuid())
   name          String
@@ -18,9 +67,12 @@ model User {
   password      String
   emailVerified DateTime?
   image         String?
-  role          String    @default("user")
+  role          UserRole  @default(USER)
+  isActive      Boolean   @default(true)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+  isDeleted     Boolean   @default(false)
+  deletedAt     DateTime?
 
   verificationTokens VerificationToken[]
   passwordResetTokens PasswordResetToken[]
@@ -29,6 +81,11 @@ model User {
   complaints         Complaint[]
   repossessions      Repossession[]
   redeployments      Redeployment[]
+  auditLogs          AuditLog[]
+
+  @@index([email])
+  @@index([role])
+  @@index([isActive])
 }
 
 model VerificationToken {
@@ -40,6 +97,7 @@ model VerificationToken {
   createdAt DateTime @default(now())
 
   @@index([userId])
+  @@index([token])
 }
 
 model PasswordResetToken {
@@ -51,6 +109,7 @@ model PasswordResetToken {
   createdAt DateTime @default(now())
 
   @@index([userId])
+  @@index([token])
 }
 
 model Session {
@@ -62,10 +121,11 @@ model Session {
   createdAt    DateTime @default(now())
 
   @@index([userId])
+  @@index([sessionToken])
 }
 
 model Shipment {
-  id              String   @id @default(cuid())
+  id              String         @id @default(cuid())
   podName         String
   shippingAddress String
   contactPerson   String
@@ -75,62 +135,108 @@ model Shipment {
   dispatchDate    DateTime?
   deliveryDate    DateTime?
   setupDate       DateTime?
-  status          String   @default("Processing")
-  totalCost       Float
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  status          ShipmentStatus @default(PROCESSING)
+  totalCost       Decimal        @db.Decimal(10, 2)
+  notes           String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
   userId          String
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isDeleted       Boolean        @default(false)
+  deletedAt       DateTime?
+
+  auditLogs AuditLog[]
 
   @@index([userId])
   @@index([status])
+  @@index([orderDate])
+  @@index([isDeleted])
 }
 
 model Complaint {
-  id          String   @id @default(cuid())
+  id          String            @id @default(cuid())
   computerId  String
   issue       String
   description String?
-  status      String   @default("Pending")
-  priority    String   @default("Medium")
+  status      ComplaintStatus   @default(PENDING)
+  priority    ComplaintPriority @default(MEDIUM)
   resolvedAt  DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  notes       String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
   userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isDeleted   Boolean           @default(false)
+  deletedAt   DateTime?
+
+  auditLogs AuditLog[]
 
   @@index([userId])
   @@index([status])
   @@index([priority])
+  @@index([computerId])
+  @@index([isDeleted])
 }
 
 model Repossession {
-  id            String   @id @default(cuid())
-  podName       String
-  computerId    String
-  reason        String
-  status        String   @default("Pending")
-  collectedAt   DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  userId        String
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id          String             @id @default(cuid())
+  podName     String
+  computerId  String
+  reason      String
+  status      RepossessionStatus @default(PENDING)
+  collectedAt DateTime?
+  notes       String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  userId      String
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isDeleted   Boolean            @default(false)
+  deletedAt   DateTime?
+
+  auditLogs AuditLog[]
 
   @@index([userId])
   @@index([status])
+  @@index([computerId])
+  @@index([isDeleted])
 }
 
 model Redeployment {
-  id             String   @id @default(cuid())
-  shipmentId     String?
-  destination    String
-  status         String   @default("Processing")
-  deployedAt     DateTime?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id          String            @id @default(cuid())
+  shipmentId  String?
+  destination String
+  status      RedeploymentStatus @default(PROCESSING)
+  deployedAt  DateTime?
+  notes       String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  userId      String
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isDeleted   Boolean           @default(false)
+  deletedAt   DateTime?
+
+  auditLogs AuditLog[]
 
   @@index([userId])
   @@index([status])
+  @@index([shipmentId])
+  @@index([isDeleted])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  action    String   // CREATE, UPDATE, DELETE, VIEW, etc.
+  entityType String  // Shipment, Complaint, etc.
+  entityId  String
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  ipAddress String?
+  userAgent String?
+  changes   Json?    // Store before/after values
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([entityType])
+  @@index([entityId])
+  @@index([createdAt])
 }
