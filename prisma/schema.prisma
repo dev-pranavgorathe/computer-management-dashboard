@@ -145,8 +145,6 @@ model Shipment {
   isDeleted       Boolean        @default(false)
   deletedAt       DateTime?
 
-  auditLogs AuditLog[]
-
   @@index([userId])
   @@index([status])
   @@index([orderDate])
@@ -168,8 +166,6 @@ model Complaint {
   user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   isDeleted   Boolean           @default(false)
   deletedAt   DateTime?
-
-  auditLogs AuditLog[]
 
   @@index([userId])
   @@index([status])
@@ -193,8 +189,6 @@ model Repossession {
   isDeleted   Boolean            @default(false)
   deletedAt   DateTime?
 
-  auditLogs AuditLog[]
-
   @@index([userId])
   @@index([status])
   @@index([computerId])
@@ -214,8 +208,6 @@ model Redeployment {
   user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   isDeleted   Boolean           @default(false)
   deletedAt   DateTime?
-
-  auditLogs AuditLog[]
 
   @@index([userId])
   @@index([status])
