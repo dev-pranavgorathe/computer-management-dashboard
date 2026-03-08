@@ -1,8 +1,52 @@
 'use client'
 
+import { useState } from "react"
 import { signIn } from "next-auth/react"
+import { useRouter, useSearchParams } from "next/navigation"
+import Link from "next/link"
+import { Suspense } from "react"
 
-export default function SignIn() {
+function SignInForm() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const [error, setError] = useState("")
+  const [loading, setLoading] = useState(false)
+
+  const registered = searchParams.get("registered")
+  const verified = searchParams.get("verified")
+  const reset = searchParams.get("reset")
+  const errorMessage = searchParams.get("error")
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setError("")
+    setLoading(true)
+
+    const formData = new FormData(e.currentTarget)
+    const email = formData.get("email") as string
+    const password = formData.get("password") as string
+
+    try {
+      const result = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      })
+
+      if (result?.error) {
+        setError("Invalid email or password")
+        setLoading(false)
+        return
+      }
+
+      router.push("/")
+      router.refresh()
+    } catch (err) {
+      setError("Something went wrong. Please try again.")
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="max-w-md w-full bg-white rounded-xl shadow-sm border border-gray-100 p-8">
@@ -11,20 +55,115 @@ export default function SignIn() {
           <p className="text-gray-500 mt-1">Computer Management Dashboard</p>
         </div>
 
-        <button
-          onClick={() => signIn("github", { callbackUrl: "/" })}
-          className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors font-medium"
-        >
-          <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.113-.82.165-1.635.165-1.635 0 0 .006-.018.015-.018 0-0.015.015.018-.018.645 1.11 2.175 2.355 3.855 4.815-1.29 2.64-3.6 4.32-6.21 4.32-2.04 0-3.96-.795-5.475-2.13-.42.015-.585-.255-.585-.585 0-.51.42-.93.93-.93 1.98 2.52 4.815 3.99 7.92 3.99 4.755 0 8.595-4.125 8.595-9.195 0-.54-.045-1.065-.135-1.57-2.49 1.56-4.92 1.29-7.11-1.29-2.265 0-4.09-.735-5.64-1.98-.195-.105-.405-.135-.585-.135-.555 0-.6.405.96.96.96 0 0 1-.285.96-.96 0-1.365-1.125-2.535-3.09-2.535-5.76 0-2.19 1.71-4.005 3.915-4.32-.075-.195-.12-.42-.12-.645 0-.645.51-1.155 1.14-1.155.885 0 1.62.72 1.62 1.62 0 .45-.09.87-.255 1.2 1.905 3.81 6.72 6.42 12.3 6.42 7.515 0 13.545-6.03 13.545-13.545 0-.195-.015-.39-.03-.585zM5.94 17.55c-.255-.42-.81-.54-1.23-.345-.42.255-.54.81-.345 1.23.255.42.81.54 1.23.345.42-.255.54-.81.345-1.23-.255-.42-.81-.54-1.23-.345zM6.99 12.42c-.09-.48-.54-.795-1.02-.705-.48.09-.795.54-.705 1.02.09.48.54.795 1.02.705.48-.09.795-.54.705-1.02-.09-.48-.54-.795-1.02-.705zM9.21 6.84c-.345-.345-.885-.345-1.23 0-.345.345-.345.885 0 1.23.345.345.885.345 1.23 0 .345-.345.345-.885 0-1.23-.345-.345-.885-.345-1.23 0zM12.18 11.67c-.465-.225-1.02-.045-1.245.42-.225.465-.045 1.02.42 1.245.465.225 1.02.045 1.245-.42.225-.465-.045-1.02-.42-1.245-.465-.225-1.02-.045-1.245.42zM16.92 10.08c-.09-.48-.54-.795-1.02-.705-.48.09-.795.54-.705 1.02.09.48.54.795 1.02.705.48-.09.795-.54.705-1.02-.09-.48-.54-.795-1.02-.705zM18.54 16.5c-.255-.42-.81-.54-1.23-.345-.42.255-.54.81-.345 1.23.255.42.81.54 1.23.345.42-.255.54-.81.345-1.23-.255-.42-.81-.54-1.23-.345z"/>
-          </svg>
-          Sign in with GitHub
-        </button>
+        {registered && (
+          <div className="mb-6 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
+            ✓ Account created successfully! Please sign in.
+          </div>
+        )}
+
+        {verified && (
+          <div className="mb-6 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
+            ✓ Email verified successfully! You can now sign in.
+          </div>
+        )}
+
+        {reset && (
+          <div className="mb-6 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-700">
+            ✓ Password reset successfully! Please sign in with your new password.
+          </div>
+        )}
+
+        {errorMessage && (
+          <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+            {errorMessage === "missing-token" && "Invalid verification link."}
+            {errorMessage === "invalid-token" && "This verification link has expired or is invalid."}
+            {errorMessage === "token-expired" && "Verification link has expired. Please request a new one."}
+            {errorMessage === "verification-failed" && "Email verification failed. Please try again."}
+            {!["missing-token", "invalid-token", "token-expired", "verification-failed"].includes(errorMessage) && errorMessage}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+              Email Address
+            </label>
+            <input
+              type="email"
+              name="email"
+              id="email"
+              required
+              autoFocus
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              placeholder="you@example.com"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+              Password
+            </label>
+            <input
+              type="password"
+              name="password"
+              id="password"
+              required
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              placeholder="••••••••"
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <label className="flex items-center">
+              <input type="checkbox" className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500" />
+              <span className="ml-2 text-sm text-gray-600">Remember me</span>
+            </label>
+            <Link 
+              href="/auth/forgot-password"
+              className="text-sm text-primary-600 hover:text-primary-700 font-medium"
+            >
+              Forgot password?
+            </Link>
+          </div>
+
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600">
+              {error}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full px-4 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? "Signing in..." : "Sign In"}
+          </button>
+        </form>
 
         <p className="mt-6 text-center text-sm text-gray-500">
+          Don't have an account?{" "}
+          <Link href="/auth/signup" className="text-primary-600 hover:text-primary-700 font-medium">
+            Create account
+          </Link>
+        </p>
+
+        <p className="mt-4 text-center text-xs text-gray-400">
           Computer Management Team authorized users only
         </p>
       </div>
     </div>
+  )
+}
+
+export default function SignIn() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-gray-500">Loading...</div>
+      </div>
+    }>
+      <SignInForm />
+    </Suspense>
   )
 }

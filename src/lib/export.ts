@@ -1,7 +1,7 @@
 import * as XLSX from 'xlsx'
 
 // Export data to CSV
-export function exportToCSV<T>(data: T[], filename: string): void {
+export function exportToCSV<T extends Record<string, unknown>>(data: T[], filename: string): void {
   if (!data.length) {
     alert('No data to export')
     return
@@ -21,7 +21,6 @@ export function exportToCSV<T>(data: T[], filename: string): void {
         return stringValue
       }).join(',')
     )
-  )
   ]
 
   const csvContent = csvRows.join('\n')
@@ -38,7 +37,7 @@ export function exportToCSV<T>(data: T[], filename: string): void {
 }
 
 // Export data to Excel
-export function exportToExcel<T>(data: T[], filename: string): void {
+export function exportToExcel<T extends Record<string, unknown>>(data: T[], filename: string): void {
   if (!data.length) {
     alert('No data to export')
     return

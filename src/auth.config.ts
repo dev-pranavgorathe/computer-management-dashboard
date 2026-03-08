@@ -1,10 +1,11 @@
-import type { NextAuthConfig } from "next-auth"
+// Auth configuration for NextAuth v4
+// This file is kept for reference - main auth is in src/auth.ts
 
-export const authConfig: NextAuthConfig = {
+export const authConfig = {
   pages: {
     signIn: "/auth/signin",
   },
-  providers: [], // Providers are added in [...nextauth]/route.ts
+  providers: [],
 }
 
 export default authConfig
