@@ -25,7 +25,7 @@ export async function createAuditLog(data: AuditLogData): Promise<void> {
         userId: data.userId,
         ipAddress: data.ipAddress,
         userAgent: data.userAgent,
-        changes: data.changes || null,
+        changes: data.changes ? JSON.parse(JSON.stringify(data.changes)) : undefined,
       },
     })
   } catch (error) {
@@ -47,7 +47,7 @@ export async function createAuditLogs(logs: AuditLogData[]): Promise<void> {
         userId: log.userId,
         ipAddress: log.ipAddress,
         userAgent: log.userAgent,
-        changes: log.changes || null,
+        changes: log.changes ? JSON.parse(JSON.stringify(log.changes)) : undefined,
       })),
     })
   } catch (error) {
