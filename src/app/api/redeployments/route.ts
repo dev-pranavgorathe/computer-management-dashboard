@@ -157,12 +157,3 @@ export async function POST(request: NextRequest) {
     }
   })
 }
-
-function getClientInfo(request: NextRequest) {
-  return {
-    ipAddress: request.headers.get('x-forwarded-for') ||
-               request.headers.get('x-real-ip') ||
-               'unknown',
-    userAgent: request.headers.get('user-agent') || 'unknown',
-  }
-}

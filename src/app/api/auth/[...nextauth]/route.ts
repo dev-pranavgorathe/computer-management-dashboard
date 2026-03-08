@@ -3,6 +3,7 @@ import CredentialsProvider from 'next-auth/providers/credentials'
 import { compare } from 'bcryptjs'
 import prisma from '@/lib/prisma'
 import { createAuditLog } from '@/lib/audit-logger'
+import { UserRole } from '@prisma/client'
 
 const handler = NextAuth({
   providers: [
@@ -80,7 +81,7 @@ const handler = NextAuth({
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.sub || ''
-        session.user.role = token.role as string
+        session.user.role = token.role as UserRole
       }
       return session
     },

@@ -10,13 +10,14 @@ import { complaintUpdateSchema, idParamSchema } from '@/lib/validations'
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   return withAuth(request, async (user) => {
     try {
       await prisma.$connect()
 
-      const validation = idParamSchema.safeParse(params)
+      const { id: paramId } = await params
+      const validation = idParamSchema.safeParse({ id: paramId })
       if (!validation.success) {
         return NextResponse.json(
           { error: 'Invalid complaint ID' },
@@ -70,13 +71,14 @@ export async function GET(
  */
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   return withAuth(request, async (user) => {
     try {
       await prisma.$connect()
 
-      const validation = idParamSchema.safeParse(params)
+      const { id: paramId } = await params
+      const validation = idParamSchema.safeParse({ id: paramId })
       if (!validation.success) {
         return NextResponse.json(
           { error: 'Invalid complaint ID' },
@@ -176,13 +178,14 @@ export async function PUT(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   return withAuth(request, async (user) => {
     try {
       await prisma.$connect()
 
-      const validation = idParamSchema.safeParse(params)
+      const { id: paramId } = await params
+      const validation = idParamSchema.safeParse({ id: paramId })
       if (!validation.success) {
         return NextResponse.json(
           { error: 'Invalid complaint ID' },
