@@ -26,6 +26,8 @@ function SignInForm() {
     const email = formData.get("email") as string
     const password = formData.get("password") as string
 
+    console.log("Sign in attempt:", { email })
+
     try {
       const result = await signIn("credentials", {
         email,
@@ -33,15 +35,22 @@ function SignInForm() {
         redirect: false,
       })
 
+      console.log("Sign in result:", result)
+
       if (result?.error) {
+        console.error("Sign in error:", result.error)
         setError("Invalid email or password")
         setLoading(false)
         return
       }
 
+      // Success - redirect to dashboard
+      console.log("Sign in successful, redirecting...")
+      setLoading(false)
       router.push("/")
       router.refresh()
     } catch (err) {
+      console.error("Sign in exception:", err)
       setError("Something went wrong. Please try again.")
       setLoading(false)
     }
@@ -94,7 +103,7 @@ function SignInForm() {
               id="email"
               required
               autoFocus
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="you@example.com"
             />
           </div>
@@ -108,19 +117,19 @@ function SignInForm() {
               name="password"
               id="password"
               required
-              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              className="w-full px-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="••••••••"
             />
           </div>
 
           <div className="flex items-center justify-between">
             <label className="flex items-center">
-              <input type="checkbox" className="w-4 h-4 text-primary-600 border-gray-300 rounded focus:ring-primary-500" />
+              <input type="checkbox" className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" />
               <span className="ml-2 text-sm text-gray-600">Remember me</span>
             </label>
             <Link 
               href="/auth/forgot-password"
-              className="text-sm text-primary-600 hover:text-primary-700 font-medium"
+              className="text-sm text-blue-600 hover:text-blue-700 font-medium"
             >
               Forgot password?
             </Link>
@@ -135,7 +144,7 @@ function SignInForm() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full px-4 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? "Signing in..." : "Sign In"}
           </button>
@@ -143,7 +152,7 @@ function SignInForm() {
 
         <p className="mt-6 text-center text-sm text-gray-500">
           Don't have an account?{" "}
-          <Link href="/auth/signup" className="text-primary-600 hover:text-primary-700 font-medium">
+          <Link href="/auth/signup" className="text-blue-600 hover:text-blue-700 font-medium">
             Create account
           </Link>
         </p>
