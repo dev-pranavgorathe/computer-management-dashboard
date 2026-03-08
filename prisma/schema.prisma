@@ -6,8 +6,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -24,6 +25,10 @@ model User {
   verificationTokens VerificationToken[]
   passwordResetTokens PasswordResetToken[]
   sessions           Session[]
+  shipments          Shipment[]
+  complaints         Complaint[]
+  repossessions      Repossession[]
+  redeployments      Redeployment[]
 }
 
 model VerificationToken {
@@ -57,4 +62,75 @@ model Session {
   createdAt    DateTime @default(now())
 
   @@index([userId])
+}
+
+model Shipment {
+  id              String   @id @default(cuid())
+  podName         String
+  shippingAddress String
+  contactPerson   String
+  mobileNumber    String
+  peripherals     String
+  orderDate       DateTime
+  dispatchDate    DateTime?
+  deliveryDate    DateTime?
+  setupDate       DateTime?
+  status          String   @default("Processing")
+  totalCost       Float
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+}
+
+model Complaint {
+  id          String   @id @default(cuid())
+  computerId  String
+  issue       String
+  description String?
+  status      String   @default("Pending")
+  priority    String   @default("Medium")
+  resolvedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([priority])
+}
+
+model Repossession {
+  id            String   @id @default(cuid())
+  podName       String
+  computerId    String
+  reason        String
+  status        String   @default("Pending")
+  collectedAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+}
+
+model Redeployment {
+  id             String   @id @default(cuid())
+  shipmentId     String?
+  destination    String
+  status         String   @default("Processing")
+  deployedAt     DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
 }
