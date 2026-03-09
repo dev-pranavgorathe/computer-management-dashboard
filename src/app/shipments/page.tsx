@@ -225,14 +225,14 @@ export default function ShipmentsPage() {
             Filters
           </button>
           <button 
-            onClick={() => exportToCSV(filteredShipments, 'shipments')}
+            onClick={() => exportToCSV(filteredShipments as unknown as Record<string, unknown>[], 'shipments')}
             className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors"
           >
             <Download className="w-5 h-5" />
             CSV
           </button>
           <button 
-            onClick={() => exportToExcel(filteredShipments, 'shipments')}
+            onClick={() => exportToExcel(filteredShipments as unknown as Record<string, unknown>[], 'shipments')}
             className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors"
           >
             <Download className="w-5 h-5" />

@@ -32,7 +32,7 @@ export const signInSchema = z.object({
 
 // ==================== Shipment Validations ====================
 
-export const shipmentCreateSchema = z.object({
+const shipmentBaseSchema = z.object({
   podName: z
     .string()
     .min(1, 'POD name is required')
@@ -76,7 +76,9 @@ export const shipmentCreateSchema = z.object({
     .positive('Total cost must be positive')
     .max(99999999.99, 'Total cost exceeds maximum value'),
   notes: z.string().max(1000).optional(),
-}).refine(data => {
+})
+
+export const shipmentCreateSchema = shipmentBaseSchema.refine(data => {
   // Validate date logic
   if (data.dispatchDate && data.dispatchDate < data.orderDate) {
     return false
@@ -92,7 +94,7 @@ export const shipmentCreateSchema = z.object({
   message: 'Invalid date sequence: dispatch must be after order, delivery after dispatch, setup after delivery',
 })
 
-export const shipmentUpdateSchema = shipmentCreateSchema.partial()
+export const shipmentUpdateSchema = shipmentBaseSchema.partial()
 
 // ==================== Complaint Validations ====================
 
@@ -110,7 +112,7 @@ export const complaintCreateSchema = z.object({
     .max(1000, 'Description must be less than 1000 characters')
     .optional(),
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'], {
-    errorMap: () => ({ message: 'Invalid priority level' }),
+    message: 'Invalid priority level',
   }),
   notes: z.string().max(1000).optional(),
 })
