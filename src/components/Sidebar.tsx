@@ -8,6 +8,8 @@ import {
   AlertCircle, 
   RefreshCcw, 
   ArrowRightLeft,
+  Mail,
+  FileText,
   Menu,
   X
 } from 'lucide-react'
@@ -19,6 +21,8 @@ const navItems = [
   { name: 'Complaints', href: '/complaints', icon: AlertCircle },
   { name: 'Repossessions', href: '/repossessions', icon: RefreshCcw },
   { name: 'Redeployments', href: '/redeployments', icon: ArrowRightLeft },
+  { name: 'Email Templates', href: '/email-templates', icon: Mail },
+  { name: 'Summary Reports', href: '/reports', icon: FileText },
 ]
 
 export default function Sidebar() {
