@@ -68,6 +68,7 @@ export async function GET(
 /**
  * PUT /api/complaints/[id]
  * Update a complaint
+ * PRD: All fields editable before SOLVED status
  */
 export async function PUT(
   request: NextRequest,
@@ -99,6 +100,14 @@ export async function PUT(
         )
       }
 
+      // PRD: SOLVED status is locked - no edits allowed
+      if (existingComplaint.status === 'SOLVED') {
+        return NextResponse.json(
+          { error: 'Cannot update a solved complaint' },
+          { status: 400 }
+        )
+      }
+
       if (!await canModifyResource(user.id, existingComplaint.userId, user.role)) {
         return NextResponse.json(
           { error: 'You do not have permission to update this complaint' },
@@ -126,13 +135,20 @@ export async function PUT(
       const complaint = await prisma.complaint.update({
         where: { id },
         data: {
-          ...(data.computerId && { computerId: data.computerId }),
+          ...(data.podName && { podName: data.podName }),
+          ...(data.phase !== undefined && { phase: data.phase }),
+          ...(data.deviceType && { deviceType: data.deviceType }),
+          ...(data.deviceSerial !== undefined && { deviceSerial: data.deviceSerial }),
           ...(data.issue && { issue: data.issue }),
           ...(data.description !== undefined && { description: data.description }),
+          ...(data.contactPerson !== undefined && { contactPerson: data.contactPerson }),
+          ...(data.mobileNumber !== undefined && { mobileNumber: data.mobileNumber }),
           ...(data.status && { status: data.status }),
           ...(data.priority && { priority: data.priority }),
-          ...(data.resolvedAt !== undefined && { resolvedAt: data.resolvedAt }),
-          ...(data.notes !== undefined && { notes: data.notes }),
+          ...(data.resolution !== undefined && { resolution: data.resolution }),
+          ...(data.remarks !== undefined && { remarks: data.remarks }),
+          ...(data.attachments !== undefined && { attachments: data.attachments }),
+          ...(data.solvedDate !== undefined && { solvedDate: data.solvedDate }),
         },
         include: {
           user: {
@@ -153,10 +169,10 @@ export async function PUT(
         userId: user.id,
         ipAddress: clientInfo.ipAddress,
         userAgent: clientInfo.userAgent,
-        changes: { 
+        changes: JSON.stringify({ 
           before: existingComplaint,
           after: complaint 
-        }
+        })
       })
 
       return NextResponse.json(complaint)
@@ -229,7 +245,7 @@ export async function DELETE(
         userId: user.id,
         ipAddress: clientInfo.ipAddress,
         userAgent: clientInfo.userAgent,
-        changes: { deletedAt: complaint.deletedAt }
+        changes: JSON.stringify({ deletedAt: complaint.deletedAt })
       })
 
       return NextResponse.json(

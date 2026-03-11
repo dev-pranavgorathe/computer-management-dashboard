@@ -2,7 +2,39 @@ import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { withAuth, getClientInfo } from '@/lib/auth-helpers'
 import { createAuditLog } from '@/lib/audit-logger'
-import { complaintCreateSchema, paginationSchema } from '@/lib/validations'
+import { complaintCreateSchema, complaintUpdateSchema, paginationSchema, COMPLAINT_STATUSES, DEVICE_TYPES } from '@/lib/validations'
+
+// Helper to generate refId
+async function generateComplaintRefId(): Promise<string> {
+  const lastComplaint = await prisma.complaint.findFirst({
+    where: { refId: { startsWith: 'CMP-' } },
+    orderBy: { createdAt: 'desc' },
+    select: { refId: true },
+  })
+  
+  if (!lastComplaint || !lastComplaint.refId) {
+    return 'CMP-001'
+  }
+  
+  const lastNum = parseInt(lastComplaint.refId.replace('CMP-', ''), 10)
+  return `CMP-${String(lastNum + 1).padStart(3, '0')}`
+}
+
+// Helper to generate ticket number
+async function generateTicketNumber(): Promise<string> {
+  const lastComplaint = await prisma.complaint.findFirst({
+    where: { ticket: { startsWith: 'TKT-' } },
+    orderBy: { createdAt: 'desc' },
+    select: { ticket: true },
+  })
+  
+  if (!lastComplaint || !lastComplaint.ticket) {
+    return 'TKT-0001'
+  }
+  
+  const lastNum = parseInt(lastComplaint.ticket.replace('TKT-', ''), 10)
+  return `TKT-${String(lastNum + 1).padStart(4, '0')}`
+}
 
 /**
  * GET /api/complaints
@@ -16,7 +48,7 @@ export async function GET(request: NextRequest) {
       const { searchParams } = new URL(request.url)
       const { page, limit, search, sortBy, sortOrder } = paginationSchema.parse({
         page: searchParams.get('page') || '1',
-        limit: searchParams.get('limit') || '10',
+        limit: searchParams.get('limit') || '50',
         search: searchParams.get('search') || undefined,
         sortBy: searchParams.get('sortBy') || 'createdAt',
         sortOrder: searchParams.get('sortOrder') || 'desc',
@@ -24,9 +56,10 @@ export async function GET(request: NextRequest) {
 
       const status = searchParams.get('status')
       const priority = searchParams.get('priority')
+      const deviceType = searchParams.get('deviceType')
 
       // Build where clause
-      const where: any = {
+      const where: Record<string, unknown> = {
         isDeleted: false,
       }
 
@@ -38,20 +71,27 @@ export async function GET(request: NextRequest) {
       // Add search filter
       if (search) {
         where.OR = [
-          { podName: { contains: search, mode: 'insensitive' } },
-          { id: { contains: search, mode: 'insensitive' } },
-          { issue: { contains: search, mode: 'insensitive' } },
+          { podName: { contains: search } },
+          { refId: { contains: search } },
+          { ticket: { contains: search } },
+          { issue: { contains: search } },
+          { deviceSerial: { contains: search } },
         ]
       }
 
       // Add status filter
-      if (status) {
+      if (status && COMPLAINT_STATUSES.includes(status as typeof COMPLAINT_STATUSES[number])) {
         where.status = status
       }
 
       // Add priority filter
       if (priority) {
         where.priority = priority
+      }
+
+      // Add device type filter
+      if (deviceType && DEVICE_TYPES.includes(deviceType as typeof DEVICE_TYPES[number])) {
+        where.deviceType = deviceType
       }
 
       // Get total count
@@ -101,6 +141,7 @@ export async function GET(request: NextRequest) {
 /**
  * POST /api/complaints
  * Create a new complaint
+ * PRD: Phase is optional at creation
  */
 export async function POST(request: NextRequest) {
   return withAuth(request, async (user) => {
@@ -126,14 +167,26 @@ export async function POST(request: NextRequest) {
 
       const data = validationResult.data
 
+      // Generate IDs
+      const refId = await generateComplaintRefId()
+      const ticket = await generateTicketNumber()
+
       // Create complaint
       const complaint = await prisma.complaint.create({
         data: {
-          computerId: data.computerId,
+          refId,
+          ticket,
+          podName: data.podName,
+          phase: data.phase, // Optional per PRD
+          deviceType: data.deviceType || 'CPU',
+          deviceSerial: data.deviceSerial,
           issue: data.issue,
           description: data.description,
-          priority: data.priority,
-          notes: data.notes,
+          contactPerson: data.contactPerson,
+          mobileNumber: data.mobileNumber,
+          attachments: data.attachments,
+          priority: data.priority || 'MEDIUM',
+          status: 'OPEN',
           userId: user.id,
         },
         include: {
@@ -156,11 +209,13 @@ export async function POST(request: NextRequest) {
         userId: user.id,
         ipAddress: clientInfo.ipAddress,
         userAgent: clientInfo.userAgent,
-        changes: { 
-          computerId: complaint.computerId, 
+        changes: JSON.stringify({ 
+          refId: complaint.refId,
+          ticket: complaint.ticket,
+          podName: complaint.podName, 
           issue: complaint.issue,
-          priority: complaint.priority
-        }
+          deviceType: complaint.deviceType,
+        })
       })
 
       return NextResponse.json(complaint, { status: 201 })

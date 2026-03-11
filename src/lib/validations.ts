@@ -32,6 +32,9 @@ export const signInSchema = z.object({
 
 // ==================== Shipment Validations ====================
 
+// PRD: Status pipeline - Pending → Order Sent → Dispatched → In Transit → Delivered → Completed
+export const SHIPMENT_STATUSES = ['PENDING', 'ORDER_SENT', 'DISPATCHED', 'IN_TRANSIT', 'DELIVERED', 'COMPLETED'] as const
+
 const shipmentBaseSchema = z.object({
   podName: z
     .string()
@@ -48,10 +51,45 @@ const shipmentBaseSchema = z.object({
   mobileNumber: z
     .string()
     .regex(/^\+?[\d\s\-()]{10,15}$/, 'Invalid phone number format'),
-  peripherals: z
+  
+  // PRD fields
+  cpus: z
+    .number()
+    .int('CPU count must be a whole number')
+    .min(1, 'At least 1 CPU is required')
+    .max(100, 'Maximum 100 CPUs allowed')
+    .default(1),
+  components: z
     .string()
-    .min(1, 'Peripherals information is required')
-    .max(500, 'Peripherals must be less than 500 characters'),
+    .max(1000, 'Components must be less than 1000 characters')
+    .optional()
+    .nullable()
+    .or(z.literal('')),
+  serials: z
+    .string()
+    .max(2000, 'Serials must be less than 2000 characters')
+    .optional()
+    .nullable()
+    .or(z.literal('')),
+  trackingId: z
+    .string()
+    .max(100, 'Tracking ID must be less than 100 characters')
+    .optional()
+    .nullable()
+    .or(z.literal('')),
+  qcReport: z
+    .string()
+    .max(255, 'QC report filename must be less than 255 characters')
+    .optional()
+    .nullable()
+    .or(z.literal('')),
+  signedQc: z
+    .string()
+    .max(255, 'Signed QC filename must be less than 255 characters')
+    .optional()
+    .nullable()
+    .or(z.literal('')),
+  
   orderDate: z
     .string()
     .transform(str => new Date(str))
@@ -66,16 +104,13 @@ const shipmentBaseSchema = z.object({
     .optional()
     .nullable()
     .transform(str => str ? new Date(str) : null),
-  setupDate: z
-    .string()
-    .optional()
-    .nullable()
-    .transform(str => str ? new Date(str) : null),
   totalCost: z
     .number()
-    .positive('Total cost must be positive')
-    .max(99999999.99, 'Total cost exceeds maximum value'),
-  notes: z.string().max(1000).optional(),
+    .min(0, 'Total cost cannot be negative')
+    .max(99999999.99, 'Total cost exceeds maximum value')
+    .optional()
+    .default(0),
+  notes: z.string().max(1000).optional().nullable().or(z.literal('')),
 })
 
 export const shipmentCreateSchema = shipmentBaseSchema.refine(data => {
@@ -86,40 +121,66 @@ export const shipmentCreateSchema = shipmentBaseSchema.refine(data => {
   if (data.deliveryDate && data.dispatchDate && data.deliveryDate < data.dispatchDate) {
     return false
   }
-  if (data.setupDate && data.deliveryDate && data.setupDate < data.deliveryDate) {
-    return false
-  }
   return true
 }, {
-  message: 'Invalid date sequence: dispatch must be after order, delivery after dispatch, setup after delivery',
+  message: 'Invalid date sequence: dispatch must be after order, delivery after dispatch',
 })
 
-export const shipmentUpdateSchema = shipmentBaseSchema.partial()
+export const shipmentUpdateSchema = shipmentBaseSchema.partial().extend({
+  status: z.enum(SHIPMENT_STATUSES).optional(),
+})
 
 // ==================== Complaint Validations ====================
 
+// PRD: Open → In Progress → Solved
+export const COMPLAINT_STATUSES = ['OPEN', 'IN_PROGRESS', 'SOLVED'] as const
+export const DEVICE_TYPES = ['MONITOR', 'CPU', 'KEYBOARD', 'MOUSE', 'WEBCAM', 'HEADPHONES', 'PSU', 'NETWORK_ADAPTER', 'OTHER'] as const
+
 export const complaintCreateSchema = z.object({
-  computerId: z
+  podName: z
     .string()
-    .min(1, 'Computer ID is required')
-    .max(50, 'Computer ID must be less than 50 characters'),
+    .min(1, 'POD name is required')
+    .max(200, 'POD name must be less than 200 characters'),
+  phase: z
+    .string()
+    .max(50, 'Phase must be less than 50 characters')
+    .optional(), // Optional at creation per PRD
+  deviceType: z
+    .enum(DEVICE_TYPES)
+    .default('CPU'),
+  deviceSerial: z
+    .string()
+    .max(100, 'Device serial must be less than 100 characters')
+    .optional(),
   issue: z
     .string()
     .min(5, 'Issue must be at least 5 characters')
     .max(200, 'Issue must be less than 200 characters'),
   description: z
     .string()
-    .max(1000, 'Description must be less than 1000 characters')
+    .max(2000, 'Description must be less than 2000 characters')
     .optional(),
-  priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'], {
-    message: 'Invalid priority level',
-  }),
-  notes: z.string().max(1000).optional(),
+  contactPerson: z
+    .string()
+    .max(100, 'Contact person must be less than 100 characters')
+    .optional(),
+  mobileNumber: z
+    .string()
+    .regex(/^\+?[\d\s\-()]{10,15}$/, 'Invalid phone number format')
+    .optional()
+    .or(z.literal('')),
+  attachments: z
+    .string()
+    .max(2000, 'Attachments must be less than 2000 characters')
+    .optional(),
+  priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']).default('MEDIUM'),
 })
 
 export const complaintUpdateSchema = complaintCreateSchema.partial().extend({
-  status: z.enum(['PENDING', 'IN_PROGRESS', 'SOLVED', 'CLOSED']).optional(),
-  resolvedAt: z
+  status: z.enum(COMPLAINT_STATUSES).optional(),
+  resolution: z.string().max(1000).optional(),
+  remarks: z.string().max(1000).optional(),
+  solvedDate: z
     .string()
     .optional()
     .nullable()
@@ -128,25 +189,41 @@ export const complaintUpdateSchema = complaintCreateSchema.partial().extend({
 
 // ==================== Repossession Validations ====================
 
+// PRD: Pending → Collected → In Progress → Completed
+export const REPOSSESSION_STATUSES = ['PENDING', 'COLLECTED', 'IN_PROGRESS', 'COMPLETED'] as const
+
 export const repossessionCreateSchema = z.object({
   podName: z
     .string()
     .min(1, 'POD name is required')
     .max(200, 'POD name must be less than 200 characters'),
-  computerId: z
+  shippingAddress: z
     .string()
-    .min(1, 'Computer ID is required')
-    .max(50, 'Computer ID must be less than 50 characters'),
-  reason: z
+    .max(500, 'Address must be less than 500 characters')
+    .optional(),
+  contactPerson: z
     .string()
-    .min(10, 'Reason must be at least 10 characters')
-    .max(500, 'Reason must be less than 500 characters'),
+    .max(100, 'Contact person must be less than 100 characters')
+    .optional(),
+  mobileNumber: z
+    .string()
+    .regex(/^\+?[\d\s\-()]{10,15}$/, 'Invalid phone number format')
+    .optional()
+    .or(z.literal('')),
+  components: z
+    .string()
+    .max(1000, 'Components must be less than 1000 characters')
+    .optional(),
+  serials: z
+    .string()
+    .max(2000, 'Serials must be less than 2000 characters')
+    .optional(),
   notes: z.string().max(1000).optional(),
 })
 
 export const repossessionUpdateSchema = repossessionCreateSchema.partial().extend({
-  status: z.enum(['PENDING', 'SCHEDULED', 'COLLECTED', 'COMPLETED', 'CANCELLED']).optional(),
-  collectedAt: z
+  status: z.enum(REPOSSESSION_STATUSES).optional(),
+  reshippedDate: z
     .string()
     .optional()
     .nullable()
@@ -155,18 +232,62 @@ export const repossessionUpdateSchema = repossessionCreateSchema.partial().exten
 
 // ==================== Redeployment Validations ====================
 
+// PRD: Pending → Order Sent → In Transit → Delivered → Completed
+export const REDEPLOYMENT_STATUSES = ['PENDING', 'ORDER_SENT', 'IN_TRANSIT', 'DELIVERED', 'COMPLETED'] as const
+
 export const redeploymentCreateSchema = z.object({
-  shipmentId: z.string().optional().nullable(),
-  destination: z
+  podName: z
     .string()
-    .min(5, 'Destination must be at least 5 characters')
-    .max(200, 'Destination must be less than 200 characters'),
+    .min(1, 'Destination POD name is required')
+    .max(200, 'POD name must be less than 200 characters'),
+  shippingAddress: z
+    .string()
+    .max(500, 'Address must be less than 500 characters')
+    .optional(),
+  contactPerson: z
+    .string()
+    .max(100, 'Contact person must be less than 100 characters')
+    .optional(),
+  mobileNumber: z
+    .string()
+    .regex(/^\+?[\d\s\-()]{10,15}$/, 'Invalid phone number format')
+    .optional()
+    .or(z.literal('')),
+  sourcePod: z
+    .string()
+    .max(200, 'Source POD must be less than 200 characters')
+    .optional(),
+  components: z
+    .string()
+    .max(1000, 'Components must be less than 1000 characters')
+    .optional(),
+  serials: z
+    .string()
+    .max(2000, 'Serials must be less than 2000 characters')
+    .optional(),
+  complaintTicket: z
+    .string()
+    .max(50, 'Complaint ticket must be less than 50 characters')
+    .optional(),
+  trackingId: z
+    .string()
+    .max(100, 'Tracking ID must be less than 100 characters')
+    .optional(),
+  orderDate: z
+    .string()
+    .optional()
+    .transform(str => str ? new Date(str) : new Date()),
   notes: z.string().max(1000).optional(),
 })
 
 export const redeploymentUpdateSchema = redeploymentCreateSchema.partial().extend({
-  status: z.enum(['PROCESSING', 'SCHEDULED', 'DEPLOYED', 'COMPLETED', 'CANCELLED']).optional(),
-  deployedAt: z
+  status: z.enum(REDEPLOYMENT_STATUSES).optional(),
+  dispatchDate: z
+    .string()
+    .optional()
+    .nullable()
+    .transform(str => str ? new Date(str) : null),
+  deliveryDate: z
     .string()
     .optional()
     .nullable()
@@ -185,7 +306,7 @@ export const paginationSchema = z.object({
   limit: z
     .string()
     .optional()
-    .default('10')
+    .default('50')
     .transform(Number)
     .refine(n => n > 0 && n <= 100, 'Limit must be between 1 and 100'),
   search: z.string().optional(),

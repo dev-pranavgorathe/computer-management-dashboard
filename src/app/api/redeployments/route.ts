@@ -2,7 +2,23 @@ import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { withAuth, getClientInfo } from '@/lib/auth-helpers'
 import { createAuditLog } from '@/lib/audit-logger'
-import { redeploymentCreateSchema, paginationSchema } from '@/lib/validations'
+import { redeploymentCreateSchema, redeploymentUpdateSchema, paginationSchema, REDEPLOYMENT_STATUSES } from '@/lib/validations'
+
+// Helper to generate refId
+async function generateRedeploymentRefId(): Promise<string> {
+  const lastRedep = await prisma.redeployment.findFirst({
+    where: { refId: { startsWith: 'RDP-' } },
+    orderBy: { createdAt: 'desc' },
+    select: { refId: true },
+  })
+  
+  if (!lastRedep || !lastRedep.refId) {
+    return 'RDP-001'
+  }
+  
+  const lastNum = parseInt(lastRedep.refId.replace('RDP-', ''), 10)
+  return `RDP-${String(lastNum + 1).padStart(3, '0')}`
+}
 
 /**
  * GET /api/redeployments
@@ -16,36 +32,50 @@ export async function GET(request: NextRequest) {
       const { searchParams } = new URL(request.url)
       const { page, limit, search, sortBy, sortOrder } = paginationSchema.parse({
         page: searchParams.get('page') || '1',
-        limit: searchParams.get('limit') || '10',
+        limit: searchParams.get('limit') || '50',
         search: searchParams.get('search') || undefined,
         sortBy: searchParams.get('sortBy') || 'createdAt',
         sortOrder: searchParams.get('sortOrder') || 'desc',
       })
 
       const status = searchParams.get('status')
+      const complaintTicket = searchParams.get('complaintTicket')
 
-      const where: any = {
+      // Build where clause
+      const where: Record<string, unknown> = {
         isDeleted: false,
       }
 
+      // Non-admin users can only see their own redeployments
       if (user.role === 'USER') {
         where.userId = user.id
       }
 
+      // Add search filter
       if (search) {
         where.OR = [
-          { destination: { contains: search, mode: 'insensitive' } },
-          { id: { contains: search, mode: 'insensitive' } },
-          { shipmentId: { contains: search, mode: 'insensitive' } },
+          { podName: { contains: search } },
+          { refId: { contains: search } },
+          { sourcePod: { contains: search } },
+          { complaintTicket: { contains: search } },
+          { serials: { contains: search } },
         ]
       }
 
-      if (status) {
+      // Add status filter
+      if (status && REDEPLOYMENT_STATUSES.includes(status as typeof REDEPLOYMENT_STATUSES[number])) {
         where.status = status
       }
 
+      // Filter by linked complaint
+      if (complaintTicket) {
+        where.complaintTicket = complaintTicket
+      }
+
+      // Get total count
       const total = await prisma.redeployment.count({ where })
 
+      // Get redeployments
       const redeployments = await prisma.redeployment.findMany({
         where,
         include: {
@@ -89,6 +119,7 @@ export async function GET(request: NextRequest) {
 /**
  * POST /api/redeployments
  * Create a new redeployment
+ * PRD: Can be linked to a complaint ticket for traceability
  */
 export async function POST(request: NextRequest) {
   return withAuth(request, async (user) => {
@@ -97,6 +128,7 @@ export async function POST(request: NextRequest) {
 
       const body = await request.json()
 
+      // Validate input
       const validationResult = redeploymentCreateSchema.safeParse(body)
       
       if (!validationResult.success) {
@@ -113,11 +145,25 @@ export async function POST(request: NextRequest) {
 
       const data = validationResult.data
 
+      // Generate refId
+      const refId = await generateRedeploymentRefId()
+
+      // Create redeployment
       const redeployment = await prisma.redeployment.create({
         data: {
-          shipmentId: data.shipmentId,
-          destination: data.destination,
+          refId,
+          podName: data.podName,
+          shippingAddress: data.shippingAddress,
+          contactPerson: data.contactPerson,
+          mobileNumber: data.mobileNumber,
+          sourcePod: data.sourcePod,
+          components: data.components,
+          serials: data.serials,
+          complaintTicket: data.complaintTicket, // Linked for traceability
+          trackingId: data.trackingId,
+          orderDate: data.orderDate || new Date(),
           notes: data.notes,
+          status: 'PENDING',
           userId: user.id,
         },
         include: {
@@ -131,6 +177,7 @@ export async function POST(request: NextRequest) {
         }
       })
 
+      // Create audit log
       const clientInfo = getClientInfo(request)
       await createAuditLog({
         action: 'CREATE',
@@ -139,10 +186,12 @@ export async function POST(request: NextRequest) {
         userId: user.id,
         ipAddress: clientInfo.ipAddress,
         userAgent: clientInfo.userAgent,
-        changes: { 
-          destination: redeployment.destination, 
-          shipmentId: redeployment.shipmentId
-        }
+        changes: JSON.stringify({ 
+          refId: redeployment.refId,
+          podName: redeployment.podName,
+          sourcePod: redeployment.sourcePod,
+          complaintTicket: redeployment.complaintTicket,
+        })
       })
 
       return NextResponse.json(redeployment, { status: 201 })

@@ -9,7 +9,7 @@ interface AuditLogData {
   userId?: string | null
   ipAddress?: string | null
   userAgent?: string | null
-  changes?: Record<string, unknown>
+  changes?: Record<string, unknown> | string
 }
 
 /**
@@ -17,6 +17,12 @@ interface AuditLogData {
  */
 export async function createAuditLog(data: AuditLogData): Promise<void> {
   try {
+    const changesValue = typeof data.changes === 'string' 
+      ? data.changes 
+      : data.changes 
+        ? JSON.stringify(data.changes) 
+        : undefined
+
     await prisma.auditLog.create({
       data: {
         action: data.action,
@@ -25,7 +31,7 @@ export async function createAuditLog(data: AuditLogData): Promise<void> {
         userId: data.userId,
         ipAddress: data.ipAddress,
         userAgent: data.userAgent,
-        changes: data.changes ? JSON.parse(JSON.stringify(data.changes)) : undefined,
+        changes: changesValue,
       },
     })
   } catch (error) {
@@ -47,7 +53,7 @@ export async function createAuditLogs(logs: AuditLogData[]): Promise<void> {
         userId: log.userId,
         ipAddress: log.ipAddress,
         userAgent: log.userAgent,
-        changes: log.changes ? JSON.parse(JSON.stringify(log.changes)) : undefined,
+        changes: log.changes ? JSON.stringify(log.changes) : undefined,
       })),
     })
   } catch (error) {

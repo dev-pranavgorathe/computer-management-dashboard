@@ -3,7 +3,9 @@ import CredentialsProvider from 'next-auth/providers/credentials'
 import { compare } from 'bcryptjs'
 import prisma from '@/lib/prisma'
 import { createAuditLog } from '@/lib/audit-logger'
-import { UserRole } from '@prisma/client'
+
+// Type for user role (now a string in SQLite)
+type UserRole = string
 
 const handler = NextAuth({
   providers: [

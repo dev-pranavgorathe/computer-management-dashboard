@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { withAuth, canModifyResource, getClientInfo } from '@/lib/auth-helpers'
 import { createAuditLog } from '@/lib/audit-logger'
-import { shipmentUpdateSchema, idParamSchema } from '@/lib/validations'
+import { shipmentUpdateSchema, idParamSchema, SHIPMENT_STATUSES } from '@/lib/validations'
 
 /**
  * GET /api/shipments/[id]
@@ -16,7 +16,6 @@ export async function GET(
     try {
       await prisma.$connect()
 
-      // Await params and validate ID
       const { id: paramId } = await params
       const validation = idParamSchema.safeParse({ id: paramId })
       if (!validation.success) {
@@ -28,12 +27,10 @@ export async function GET(
 
       const { id } = validation.data
 
-      // Fetch shipment
       const shipment = await prisma.shipment.findFirst({
         where: {
           id,
           isDeleted: false,
-          // Non-admin users can only see their own shipments
           ...(user.role === 'USER' && { userId: user.id })
         },
         include: {
@@ -71,6 +68,7 @@ export async function GET(
 /**
  * PUT /api/shipments/[id]
  * Update a shipment
+ * PRD: Editable until COMPLETED status
  */
 export async function PUT(
   request: NextRequest,
@@ -80,7 +78,6 @@ export async function PUT(
     try {
       await prisma.$connect()
 
-      // Await params and validate ID
       const { id: paramId } = await params
       const validation = idParamSchema.safeParse({ id: paramId })
       if (!validation.success) {
@@ -92,7 +89,6 @@ export async function PUT(
 
       const { id } = validation.data
 
-      // Fetch existing shipment
       const existingShipment = await prisma.shipment.findFirst({
         where: { id, isDeleted: false }
       })
@@ -104,7 +100,14 @@ export async function PUT(
         )
       }
 
-      // Check authorization
+      // PRD: COMPLETED status is locked - no edits allowed
+      if (existingShipment.status === 'COMPLETED') {
+        return NextResponse.json(
+          { error: 'Cannot update a completed shipment' },
+          { status: 400 }
+        )
+      }
+
       if (!await canModifyResource(user.id, existingShipment.userId, user.role)) {
         return NextResponse.json(
           { error: 'You do not have permission to update this shipment' },
@@ -112,7 +115,6 @@ export async function PUT(
         )
       }
 
-      // Parse and validate request body
       const body = await request.json()
       const validationResult = shipmentUpdateSchema.safeParse(body)
       
@@ -130,7 +132,7 @@ export async function PUT(
 
       const data = validationResult.data
 
-      // Update shipment
+      // Update shipment with PRD fields
       const shipment = await prisma.shipment.update({
         where: { id },
         data: {
@@ -138,13 +140,18 @@ export async function PUT(
           ...(data.shippingAddress && { shippingAddress: data.shippingAddress }),
           ...(data.contactPerson && { contactPerson: data.contactPerson }),
           ...(data.mobileNumber && { mobileNumber: data.mobileNumber }),
-          ...(data.peripherals && { peripherals: data.peripherals }),
+          ...(data.cpus && { cpus: data.cpus }),
+          ...(data.components !== undefined && { components: data.components }),
+          ...(data.serials !== undefined && { serials: data.serials }),
+          ...(data.trackingId !== undefined && { trackingId: data.trackingId }),
+          ...(data.qcReport !== undefined && { qcReport: data.qcReport }),
+          ...(data.signedQc !== undefined && { signedQc: data.signedQc }),
           ...(data.orderDate && { orderDate: data.orderDate }),
           ...(data.dispatchDate !== undefined && { dispatchDate: data.dispatchDate }),
           ...(data.deliveryDate !== undefined && { deliveryDate: data.deliveryDate }),
-          ...(data.setupDate !== undefined && { setupDate: data.setupDate }),
-          ...(data.totalCost && { totalCost: data.totalCost }),
+          ...(data.totalCost !== undefined && { totalCost: data.totalCost }),
           ...(data.notes !== undefined && { notes: data.notes }),
+          ...(data.status && SHIPMENT_STATUSES.includes(data.status as typeof SHIPMENT_STATUSES[number]) && { status: data.status }),
         },
         include: {
           user: {
@@ -166,10 +173,10 @@ export async function PUT(
         userId: user.id,
         ipAddress: clientInfo.ipAddress,
         userAgent: clientInfo.userAgent,
-        changes: { 
+        changes: JSON.stringify({ 
           before: existingShipment,
           after: shipment 
-        }
+        })
       })
 
       return NextResponse.json(shipment)
@@ -197,7 +204,6 @@ export async function DELETE(
     try {
       await prisma.$connect()
 
-      // Await params and validate ID
       const { id: paramId } = await params
       const validation = idParamSchema.safeParse({ id: paramId })
       if (!validation.success) {
@@ -209,7 +215,6 @@ export async function DELETE(
 
       const { id } = validation.data
 
-      // Fetch existing shipment
       const existingShipment = await prisma.shipment.findFirst({
         where: { id, isDeleted: false }
       })
@@ -221,7 +226,6 @@ export async function DELETE(
         )
       }
 
-      // Check authorization
       if (!await canModifyResource(user.id, existingShipment.userId, user.role)) {
         return NextResponse.json(
           { error: 'You do not have permission to delete this shipment' },
@@ -229,7 +233,6 @@ export async function DELETE(
         )
       }
 
-      // Soft delete shipment
       const shipment = await prisma.shipment.update({
         where: { id },
         data: {
@@ -238,7 +241,6 @@ export async function DELETE(
         }
       })
 
-      // Create audit log
       const clientInfo = getClientInfo(request)
       await createAuditLog({
         action: 'DELETE',
@@ -247,7 +249,7 @@ export async function DELETE(
         userId: user.id,
         ipAddress: clientInfo.ipAddress,
         userAgent: clientInfo.userAgent,
-        changes: { deletedAt: shipment.deletedAt }
+        changes: JSON.stringify({ deletedAt: shipment.deletedAt })
       })
 
       return NextResponse.json(

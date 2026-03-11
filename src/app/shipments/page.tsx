@@ -3,18 +3,24 @@
 import { useState, useEffect } from 'react'
 import { Search, Filter, Plus, Eye, Edit, Truck, Download, X, Loader2 } from 'lucide-react'
 import { exportToCSV, exportToExcel, formatDate, formatCurrency } from '@/lib/export'
+import StatusPipeline, { StatusBadge, SHIPMENT_PIPELINE } from '@/components/StatusPipeline'
 
 interface Shipment {
   id: string
+  refId: string
   podName: string
   shippingAddress: string
   contactPerson: string
   mobileNumber: string
-  peripherals: string
+  cpus: number
+  components: string | null
+  serials: string | null
+  trackingId: string | null
+  qcReport: string | null
+  signedQc: string | null
   orderDate: string
   dispatchDate: string | null
   deliveryDate: string | null
-  setupDate: string | null
   status: string
   totalCost: number
   notes?: string
@@ -31,11 +37,14 @@ interface FormData {
   shippingAddress: string
   contactPerson: string
   mobileNumber: string
-  peripherals: string
+  cpus: string
+  serials: string
+  trackingId: string
+  qcReport: string
+  signedQc: string
   orderDate: string
   dispatchDate: string
   deliveryDate: string
-  setupDate: string
   totalCost: string
   notes: string
 }
@@ -45,23 +54,17 @@ const initialFormData: FormData = {
   shippingAddress: '',
   contactPerson: '',
   mobileNumber: '',
-  peripherals: '',
+  cpus: '1',
+  serials: '',
+  trackingId: '',
+  qcReport: '',
+  signedQc: '',
   orderDate: new Date().toISOString().split('T')[0],
   dispatchDate: '',
   deliveryDate: '',
-  setupDate: '',
   totalCost: '',
   notes: '',
 }
-
-const statusColors: Record<string, string> = {
-  'Delivered': 'bg-green-100 text-green-700',
-  'In Transit': 'bg-blue-100 text-blue-700',
-  'Processing': 'bg-yellow-100 text-yellow-700',
-  'Pending': 'bg-gray-100 text-gray-700',
-}
-
-const statusOptions = ['Processing', 'In Transit', 'Delivered', 'Pending']
 
 export default function ShipmentsPage() {
   const [shipments, setShipments] = useState<Shipment[]>([])
@@ -72,9 +75,13 @@ export default function ShipmentsPage() {
   const [dateRange, setDateRange] = useState({ from: '', to: '' })
   const [showAddModal, setShowAddModal] = useState(false)
   const [showFilterPanel, setShowFilterPanel] = useState(false)
+  const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null)
   const [formData, setFormData] = useState<FormData>(initialFormData)
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
+
+  // Status options matching PRD pipeline
+  const statusOptions = ['PENDING', 'ORDER_SENT', 'DISPATCHED', 'IN_TRANSIT', 'DELIVERED', 'COMPLETED']
 
   // Fetch shipments from API
   const fetchShipments = async () => {
@@ -105,7 +112,6 @@ export default function ShipmentsPage() {
   }, [searchTerm, statusFilters.join(','), dateRange.from, dateRange.to])
 
   const filteredShipments = shipments.filter((shipment) => {
-    // Status filter (for multiple selection)
     const matchesStatus = statusFilters.length === 0 || statusFilters.includes(shipment.status)
     return matchesStatus
   })
@@ -129,7 +135,6 @@ export default function ShipmentsPage() {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
-    // Clear error when user types
     if (formErrors[name]) {
       setFormErrors(prev => ({ ...prev, [name]: '' }))
     }
@@ -144,9 +149,8 @@ export default function ShipmentsPage() {
     if (!formData.contactPerson.trim()) errors.contactPerson = 'Contact person is required'
     if (!formData.mobileNumber.trim()) errors.mobileNumber = 'Mobile number is required'
     else if (!/^\+?[\d\s\-()]{10,15}$/.test(formData.mobileNumber)) errors.mobileNumber = 'Invalid phone format'
-    if (!formData.peripherals.trim()) errors.peripherals = 'Peripherals info is required'
+    if (!formData.cpus || parseInt(formData.cpus) <= 0) errors.cpus = 'CPU count is required'
     if (!formData.orderDate) errors.orderDate = 'Order date is required'
-    if (!formData.totalCost || parseFloat(formData.totalCost) <= 0) errors.totalCost = 'Valid cost is required'
     
     setFormErrors(errors)
     return Object.keys(errors).length === 0
@@ -154,12 +158,12 @@ export default function ShipmentsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!validateForm()) return
-    
+
     try {
       setSubmitting(true)
-      
+
       const response = await fetch('/api/shipments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -168,35 +172,51 @@ export default function ShipmentsPage() {
           shippingAddress: formData.shippingAddress,
           contactPerson: formData.contactPerson,
           mobileNumber: formData.mobileNumber,
-          peripherals: formData.peripherals,
+          cpus: parseInt(formData.cpus) || 1,
+          serials: formData.serials || null,
+          trackingId: formData.trackingId || null,
+          qcReport: formData.qcReport || null,
+          signedQc: formData.signedQc || null,
           orderDate: formData.orderDate,
           dispatchDate: formData.dispatchDate || null,
           deliveryDate: formData.deliveryDate || null,
-          setupDate: formData.setupDate || null,
-          totalCost: parseFloat(formData.totalCost),
+          totalCost: parseFloat(formData.totalCost) || 0,
           notes: formData.notes || null,
         }),
       })
-      
+
       if (!response.ok) {
         const errorData = await response.json()
+        console.log('API Error Response:', errorData)
+        // Handle validation errors with details
+        if (errorData.details && Array.isArray(errorData.details)) {
+          const fieldErrors: Record<string, string> = {}
+          errorData.details.forEach((detail: { field: string; message: string }) => {
+            fieldErrors[detail.field] = detail.message
+          })
+          console.log('Setting field errors:', fieldErrors)
+          setFormErrors(fieldErrors)
+          throw new Error('Please fix the highlighted fields')
+        }
         throw new Error(errorData.error || 'Failed to create shipment')
       }
-      
-      // Reset form and close modal
+
       setFormData(initialFormData)
       setFormErrors({})
       setShowAddModal(false)
-      
-      // Refresh shipments list
       await fetchShipments()
-      
+
     } catch (err) {
       console.error('Error creating shipment:', err)
-      setFormErrors({ submit: err instanceof Error ? err.message : 'Failed to create shipment' })
+      setFormErrors(prev => ({ ...prev, submit: err instanceof Error ? err.message : 'Failed to create shipment' }))
     } finally {
       setSubmitting(false)
     }
+  }
+
+  // Format status for display
+  const formatStatus = (status: string) => {
+    return status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
   }
 
   return (
@@ -207,7 +227,7 @@ export default function ShipmentsPage() {
           <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Shipment Management</h1>
           <p className="text-gray-500 mt-1">Track and manage computer shipments to PODs</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <button 
             onClick={() => setShowFilterPanel(!showFilterPanel)}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
@@ -217,11 +237,6 @@ export default function ShipmentsPage() {
             }`}
           >
             <Filter className="w-5 h-5" />
-            {hasActiveFilters && (
-              <span className="absolute -mt-8 ml-4 flex h-5 w-5 items-center justify-center rounded-full bg-primary-600 text-xs font-medium text-white">
-                {(statusFilters.length || 0) + (dateRange.from ? 1 : 0)}
-              </span>
-            )}
             Filters
           </button>
           <button 
@@ -230,13 +245,6 @@ export default function ShipmentsPage() {
           >
             <Download className="w-5 h-5" />
             CSV
-          </button>
-          <button 
-            onClick={() => exportToExcel(filteredShipments as unknown as Record<string, unknown>[], 'shipments')}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors"
-          >
-            <Download className="w-5 h-5" />
-            Excel
           </button>
           <button 
             onClick={() => setShowAddModal(true)}
@@ -248,90 +256,7 @@ export default function ShipmentsPage() {
         </div>
       </div>
 
-      {/* Advanced Filters Panel */}
-      {showFilterPanel && (
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Advanced Filters</h3>
-            {hasActiveFilters && (
-              <button 
-                onClick={clearFilters}
-                className="text-sm text-red-600 hover:text-red-700 flex items-center gap-1"
-              >
-                <X className="w-4 h-4" />
-                Clear All
-              </button>
-            )}
-          </div>
-          
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Search */}
-            <div className="lg:col-span-1">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Search</label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input
-                  type="text"
-                  placeholder="Search by POD, ID, or contact..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                />
-              </div>
-            </div>
-
-            {/* Date Range */}
-            <div className="lg:col-span-1">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Order Date Range</label>
-              <div className="flex gap-2">
-                <input
-                  type="date"
-                  value={dateRange.from}
-                  onChange={(e) => setDateRange(prev => ({ ...prev, from: e.target.value }))}
-                  className="flex-1 px-3 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
-                <input
-                  type="date"
-                  value={dateRange.to}
-                  onChange={(e) => setDateRange(prev => ({ ...prev, to: e.target.value }))}
-                  className="flex-1 px-3 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
-              </div>
-            </div>
-
-            {/* Status Filters */}
-            <div className="lg:col-span-1">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
-              <div className="flex flex-wrap gap-2">
-                {statusOptions.map((status) => (
-                  <button
-                    key={status}
-                    onClick={() => toggleStatusFilter(status)}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border ${
-                      statusFilters.includes(status)
-                        ? 'border-primary-500 bg-primary-50 text-primary-700'
-                        : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    {status}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Filter Summary */}
-          {hasActiveFilters && (
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <p className="text-sm text-gray-500">
-                Showing <span className="font-semibold text-gray-900">{filteredShipments.length}</span> of {shipments.length} shipments
-              </p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Quick Filter Bar (when advanced panel is closed) */}
+      {/* Quick Filter Bar */}
       {!showFilterPanel && (
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-6">
           <div className="flex flex-col lg:flex-row gap-4">
@@ -339,18 +264,33 @@ export default function ShipmentsPage() {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
                 type="text"
-                placeholder="Search by POD name or shipment ID..."
+                placeholder="Search by POD, Ref ID, tracking ID..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               />
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              {statusOptions.map((status) => (
+                <button
+                  key={status}
+                  onClick={() => toggleStatusFilter(status)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border ${
+                    statusFilters.includes(status)
+                      ? 'border-primary-500 bg-primary-50 text-primary-700'
+                      : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  {formatStatus(status)}
+                </button>
+              ))}
             </div>
             {hasActiveFilters && (
               <button 
                 onClick={clearFilters}
                 className="px-4 py-2 text-sm text-red-600 hover:text-red-700"
               >
-                Clear Filters
+                Clear
               </button>
             )}
           </div>
@@ -386,22 +326,22 @@ export default function ShipmentsPage() {
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Shipment ID
+                    Ref ID
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     POD Name
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Contact Person
+                    CPUs
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Contact
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Order Date
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Total Cost
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
@@ -419,13 +359,17 @@ export default function ShipmentsPage() {
                   filteredShipments.map((shipment) => (
                     <tr key={shipment.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="font-medium text-gray-900">{shipment.id}</span>
+                        <span className="font-mono text-sm text-gray-900">{shipment.refId}</span>
                       </td>
                       <td className="px-6 py-4">
                         <div>
                           <div className="font-medium text-gray-900">{shipment.podName}</div>
-                          <div className="text-sm text-gray-500">{shipment.shippingAddress}</div>
+                          <div className="text-sm text-gray-500 truncate max-w-xs">{shipment.shippingAddress}</div>
                         </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="font-semibold text-gray-900">{shipment.cpus}</span>
+                        <span className="text-gray-500 text-sm ml-1">PCs</span>
                       </td>
                       <td className="px-6 py-4">
                         <div>
@@ -437,16 +381,14 @@ export default function ShipmentsPage() {
                         {formatDate(shipment.orderDate)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColors[shipment.status] || 'bg-gray-100 text-gray-700'}`}>
-                          {shipment.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
-                        {formatCurrency(shipment.totalCost)}
+                        <StatusBadge status={shipment.status} />
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <button className="p-1 text-gray-400 hover:text-gray-600">
+                          <button 
+                            onClick={() => setSelectedShipment(shipment)}
+                            className="p-1 text-gray-400 hover:text-gray-600"
+                          >
                             <Eye className="w-5 h-5" />
                           </button>
                           <button className="p-1 text-gray-400 hover:text-gray-600">
@@ -508,6 +450,24 @@ export default function ShipmentsPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
+                    CPU Count <span className="text-red-500">*</span>
+                  </label>
+                  <input 
+                    type="number" 
+                    name="cpus"
+                    value={formData.cpus}
+                    onChange={handleInputChange}
+                    min="1"
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                      formErrors.cpus ? 'border-red-500' : 'border-gray-200'
+                    }`}
+                    placeholder="Number of CPUs"
+                  />
+                  {formErrors.cpus && <p className="text-red-500 text-xs mt-1">{formErrors.cpus}</p>}
+                  <p className="text-xs text-gray-500 mt-1">Components will be auto-generated</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Contact Person <span className="text-red-500">*</span>
                   </label>
                   <input 
@@ -540,22 +500,6 @@ export default function ShipmentsPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Total Cost <span className="text-red-500">*</span>
-                  </label>
-                  <input 
-                    type="number" 
-                    name="totalCost"
-                    value={formData.totalCost}
-                    onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 ${
-                      formErrors.totalCost ? 'border-red-500' : 'border-gray-200'
-                    }`}
-                    placeholder="₹0"
-                  />
-                  {formErrors.totalCost && <p className="text-red-500 text-xs mt-1">{formErrors.totalCost}</p>}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Order Date <span className="text-red-500">*</span>
                   </label>
                   <input 
@@ -570,20 +514,15 @@ export default function ShipmentsPage() {
                   {formErrors.orderDate && <p className="text-red-500 text-xs mt-1">{formErrors.orderDate}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Peripherals <span className="text-red-500">*</span>
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Total Cost</label>
                   <input 
-                    type="text" 
-                    name="peripherals"
-                    value={formData.peripherals}
+                    type="number" 
+                    name="totalCost"
+                    value={formData.totalCost}
                     onChange={handleInputChange}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 ${
-                      formErrors.peripherals ? 'border-red-500' : 'border-gray-200'
-                    }`}
-                    placeholder="Monitor, Keyboard, Mouse..."
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="₹0"
                   />
-                  {formErrors.peripherals && <p className="text-red-500 text-xs mt-1">{formErrors.peripherals}</p>}
                 </div>
               </div>
               <div>
@@ -597,13 +536,61 @@ export default function ShipmentsPage() {
                   className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 ${
                     formErrors.shippingAddress ? 'border-red-500' : 'border-gray-200'
                   }`}
-                  rows={3}
+                  rows={2}
                   placeholder="Enter full shipping address"
                 />
                 {formErrors.shippingAddress && <p className="text-red-500 text-xs mt-1">{formErrors.shippingAddress}</p>}
               </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Serial Numbers</label>
+                  <input 
+                    type="text" 
+                    name="serials"
+                    value={formData.serials}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="Comma-separated serials"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tracking ID</label>
+                  <input 
+                    type="text" 
+                    name="trackingId"
+                    value={formData.trackingId}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="Vendor tracking ID"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">QC Report</label>
+                  <input 
+                    type="text" 
+                    name="qcReport"
+                    value={formData.qcReport}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="QC report filename"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Signed QC</label>
+                  <input 
+                    type="text" 
+                    name="signedQc"
+                    value={formData.signedQc}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    placeholder="Signed QC filename"
+                  />
+                </div>
+              </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Notes (Optional)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
                 <textarea 
                   name="notes"
                   value={formData.notes}
@@ -636,6 +623,93 @@ export default function ShipmentsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Detail Modal */}
+      {selectedShipment && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">Shipment Details</h2>
+                  <p className="text-sm text-gray-500">{selectedShipment.refId}</p>
+                </div>
+                <button 
+                  onClick={() => setSelectedShipment(null)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-6">
+              {/* Status Pipeline */}
+              <div className="mb-6">
+                <h3 className="text-sm font-medium text-gray-700 mb-3">Status Pipeline</h3>
+                <StatusPipeline 
+                  steps={SHIPMENT_PIPELINE} 
+                  currentStatus={selectedShipment.status} 
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm text-gray-500">POD Name</label>
+                  <p className="font-medium text-gray-900">{selectedShipment.podName}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-500">CPUs</label>
+                  <p className="font-medium text-gray-900">{selectedShipment.cpus}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-500">Contact Person</label>
+                  <p className="font-medium text-gray-900">{selectedShipment.contactPerson}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-500">Mobile</label>
+                  <p className="font-medium text-gray-900">{selectedShipment.mobileNumber}</p>
+                </div>
+                <div className="col-span-2">
+                  <label className="text-sm text-gray-500">Address</label>
+                  <p className="font-medium text-gray-900">{selectedShipment.shippingAddress}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-500">Order Date</label>
+                  <p className="font-medium text-gray-900">{formatDate(selectedShipment.orderDate)}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-500">Tracking ID</label>
+                  <p className="font-medium text-gray-900">{selectedShipment.trackingId || '-'}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-500">Serial Numbers</label>
+                  <p className="font-medium text-gray-900">{selectedShipment.serials || '-'}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-500">Components</label>
+                  <p className="font-medium text-gray-900">{selectedShipment.components || '-'}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-500">QC Report</label>
+                  <p className="font-medium text-gray-900">{selectedShipment.qcReport || '-'}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-500">Signed QC</label>
+                  <p className="font-medium text-gray-900">{selectedShipment.signedQc || '-'}</p>
+                </div>
+              </div>
+              
+              {selectedShipment.notes && (
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                  <label className="text-sm text-gray-500">Notes</label>
+                  <p className="text-gray-900">{selectedShipment.notes}</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

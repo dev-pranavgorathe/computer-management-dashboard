@@ -6,59 +6,12 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
+  provider  = "sqlite"
   url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
-}
-
-// ==================== ENUMS ====================
-
-enum UserRole {
-  ADMIN
-  MANAGER
-  VIEWER
-  USER
-}
-
-enum ShipmentStatus {
-  PROCESSING
-  IN_TRANSIT
-  DELIVERED
-  PENDING
-  CANCELLED
-}
-
-enum ComplaintStatus {
-  PENDING
-  IN_PROGRESS
-  SOLVED
-  CLOSED
-}
-
-enum ComplaintPriority {
-  LOW
-  MEDIUM
-  HIGH
-  CRITICAL
-}
-
-enum RepossessionStatus {
-  PENDING
-  SCHEDULED
-  COLLECTED
-  COMPLETED
-  CANCELLED
-}
-
-enum RedeploymentStatus {
-  PROCESSING
-  SCHEDULED
-  DEPLOYED
-  COMPLETED
-  CANCELLED
 }
 
 // ==================== MODELS ====================
+// Note: Using String instead of Enum for SQLite compatibility
 
 model User {
   id            String    @id @default(cuid())
@@ -67,7 +20,7 @@ model User {
   password      String
   emailVerified DateTime?
   image         String?
-  role          UserRole  @default(USER)
+  role          String    @default("USER") // ADMIN, MANAGER, VIEWER, USER
   isActive      Boolean   @default(true)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -84,8 +37,6 @@ model User {
   auditLogs          AuditLog[]
 
   @@index([email])
-  @@index([role])
-  @@index([isActive])
 }
 
 model VerificationToken {
@@ -125,107 +76,162 @@ model Session {
 }
 
 model Shipment {
-  id              String         @id @default(cuid())
+  id              String   @id @default(cuid())
+  refId           String   @unique // "SHP-001"
   podName         String
   shippingAddress String
   contactPerson   String
   mobileNumber    String
-  peripherals     String
+  
+  // PRD fields
+  cpus            Int      @default(1)
+  components      String?  // Auto-populated from cpus
+  serials         String?  // Comma-separated serial numbers
+  trackingId      String?  // Vendor tracking reference
+  qcReport        String?  // QC report filename (from vendor)
+  signedQc        String?  // Signed QC report filename (required for Completed)
+  
   orderDate       DateTime
   dispatchDate    DateTime?
   deliveryDate    DateTime?
-  setupDate       DateTime?
-  status          ShipmentStatus @default(PROCESSING)
-  totalCost       Decimal        @db.Decimal(10, 2)
+  // Status: PENDING | ORDER_SENT | DISPATCHED | IN_TRANSIT | DELIVERED | COMPLETED
+  status          String   @default("PENDING")
+  totalCost       Float    @default(0)
   notes           String?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
   userId          String
-  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  isDeleted       Boolean        @default(false)
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isDeleted       Boolean  @default(false)
   deletedAt       DateTime?
 
   @@index([userId])
   @@index([status])
   @@index([orderDate])
   @@index([isDeleted])
+  @@index([refId])
 }
 
 model Complaint {
-  id          String            @id @default(cuid())
-  computerId  String
-  issue       String
-  description String?
-  status      ComplaintStatus   @default(PENDING)
-  priority    ComplaintPriority @default(MEDIUM)
-  resolvedAt  DateTime?
-  notes       String?
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  userId      String
-  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  isDeleted   Boolean           @default(false)
-  deletedAt   DateTime?
+  id            String   @id @default(cuid())
+  refId         String   @unique // "CMP-001"
+  ticket        String   @unique // "TKT-XXXX" auto-generated
+  
+  // PRD fields
+  podName       String
+  phase         String?  // Optional at creation, editable later
+  deviceType    String   @default("CPU") // MONITOR | CPU | KEYBOARD | MOUSE | WEBCAM | HEADPHONES | PSU | NETWORK_ADAPTER | OTHER
+  deviceSerial  String?
+  issue         String   // Short issue summary
+  description   String?
+  contactPerson String?
+  mobileNumber  String?
+  reportedDate  DateTime @default(now())
+  solvedDate    DateTime?
+  resolution    String?
+  remarks       String?
+  attachments   String?  // Comma-separated filenames
+  
+  // Status: OPEN | IN_PROGRESS | SOLVED
+  status        String   @default("OPEN")
+  // Priority: LOW | MEDIUM | HIGH | CRITICAL
+  priority      String   @default("MEDIUM")
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isDeleted     Boolean  @default(false)
+  deletedAt     DateTime?
 
   @@index([userId])
   @@index([status])
   @@index([priority])
-  @@index([computerId])
+  @@index([deviceSerial])
   @@index([isDeleted])
+  @@index([refId])
+  @@index([ticket])
 }
 
 model Repossession {
-  id          String             @id @default(cuid())
-  podName     String
-  computerId  String
-  reason      String
-  status      RepossessionStatus @default(PENDING)
-  collectedAt DateTime?
-  notes       String?
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
-  userId      String
-  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  isDeleted   Boolean            @default(false)
-  deletedAt   DateTime?
+  id            String   @id @default(cuid())
+  refId         String   @unique // "REP-001"
+  ticket        String   @unique // "TKT-XXXX" auto-generated
+  
+  // PRD fields
+  podName       String
+  shippingAddress String?
+  contactPerson String?
+  mobileNumber  String?
+  components    String?  // Equipment to be collected
+  serials       String?  // Fillable after collection
+  reshippedDate DateTime?
+  notes         String?
+  
+  // Status: PENDING | COLLECTED | IN_PROGRESS | COMPLETED
+  status        String   @default("PENDING")
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isDeleted     Boolean  @default(false)
+  deletedAt     DateTime?
 
   @@index([userId])
   @@index([status])
-  @@index([computerId])
   @@index([isDeleted])
+  @@index([refId])
+  @@index([ticket])
 }
 
 model Redeployment {
-  id          String            @id @default(cuid())
-  shipmentId  String?
-  destination String
-  status      RedeploymentStatus @default(PROCESSING)
-  deployedAt  DateTime?
-  notes       String?
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  userId      String
-  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  isDeleted   Boolean           @default(false)
-  deletedAt   DateTime?
+  id             String   @id @default(cuid())
+  refId          String   @unique // "RDP-001"
+  
+  // PRD fields
+  podName        String   // Destination POD
+  shippingAddress String?
+  contactPerson  String?
+  mobileNumber   String?
+  sourcePod      String?  // Source POD
+  components     String?
+  serials        String?
+  complaintTicket String? // Linked complaint ticket for traceability
+  trackingId     String?
+  orderDate      DateTime @default(now())
+  dispatchDate   DateTime?
+  deliveryDate   DateTime?
+  
+  // Status: PENDING | ORDER_SENT | IN_TRANSIT | DELIVERED | COMPLETED
+  status         String   @default("PENDING")
+  notes          String?
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isDeleted      Boolean  @default(false)
+  deletedAt      DateTime?
 
   @@index([userId])
   @@index([status])
-  @@index([shipmentId])
   @@index([isDeleted])
+  @@index([refId])
 }
 
 model AuditLog {
-  id        String   @id @default(cuid())
-  action    String   // CREATE, UPDATE, DELETE, VIEW, etc.
-  entityType String  // Shipment, Complaint, etc.
-  entityId  String
-  userId    String?
-  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  ipAddress String?
-  userAgent String?
-  changes   Json?    // Store before/after values
-  createdAt DateTime @default(now())
+  id         String   @id @default(cuid())
+  action     String   // CREATE, UPDATE, DELETE, VIEW, STATUS_CHANGE, etc.
+  entityType String   // Shipment, Complaint, Repossession, Redeployment
+  entityId   String
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  ipAddress  String?
+  userAgent  String?
+  changes    String?  // JSON string for before/after values
+  createdAt  DateTime @default(now())
 
   @@index([userId])
   @@index([entityType])

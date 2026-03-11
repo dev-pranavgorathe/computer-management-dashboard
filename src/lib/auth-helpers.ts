@@ -1,7 +1,9 @@
 import { getServerSession } from 'next-auth'
 import { NextRequest, NextResponse } from 'next/server'
-import { UserRole } from '@prisma/client'
 import prisma from './prisma'
+
+// User roles as strings (SQLite doesn't support enums)
+type UserRole = 'ADMIN' | 'MANAGER' | 'VIEWER' | 'USER'
 
 /**
  * Check if user has required role
@@ -48,7 +50,7 @@ export async function getCurrentUser() {
         role: true,
         isActive: true,
         isDeleted: true,
-      },
+      }
     })
 
     if (!user || !user.isActive || user.isDeleted) {
@@ -63,66 +65,71 @@ export async function getCurrentUser() {
 }
 
 /**
- * Authentication middleware wrapper for API routes
+ * Authentication middleware wrapper
  */
 export async function withAuth(
   request: NextRequest,
-  handler: (user: NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>) => Promise<NextResponse>
-): Promise<NextResponse> {
-  const user = await getCurrentUser()
+  handler: (user: { id: string; email: string; name: string; role: string }) => Promise<Response>
+) {
+  try {
+    const session = await getServerSession()
+    
+    if (!session?.user?.email) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
 
-  if (!user) {
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        isActive: true,
+        isDeleted: true,
+      }
+    })
+
+    if (!user || !user.isActive || user.isDeleted) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    return handler({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+    })
+  } catch (error) {
+    console.error('Auth middleware error:', error)
     return NextResponse.json(
-      { error: 'Authentication required' },
-      { status: 401 }
+      { error: 'Internal server error' },
+      { status: 500 }
     )
   }
-
-  return handler(user)
 }
 
 /**
- * Authorization middleware with role check
- */
-export async function withRole(
-  request: NextRequest,
-  requiredRoles: UserRole[],
-  handler: (user: NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>) => Promise<NextResponse>
-): Promise<NextResponse> {
-  const user = await getCurrentUser()
-
-  if (!user) {
-    return NextResponse.json(
-      { error: 'Authentication required' },
-      { status: 401 }
-    )
-  }
-
-  if (!hasRole(user.role, requiredRoles)) {
-    return NextResponse.json(
-      { error: 'Insufficient permissions' },
-      { status: 403 }
-    )
-  }
-
-  return handler(user)
-}
-
-/**
- * Check if user owns a resource or has admin/manager role
+ * Check if user can modify a resource (owner or admin/manager)
  */
 export async function canModifyResource(
-  userId: string,
-  resourceUserId: string,
-  userRole: UserRole
+  currentUserId: string,
+  resourceOwnerId: string,
+  currentUserRole: string
 ): Promise<boolean> {
-  // User can modify their own resources
-  if (userId === resourceUserId) {
+  // Admins and managers can modify any resource
+  if (currentUserRole === 'ADMIN' || currentUserRole === 'MANAGER') {
     return true
   }
-
-  // Admins and managers can modify any resource
-  return hasMinimumRole(userRole, 'MANAGER')
+  
+  // Users can only modify their own resources
+  return currentUserId === resourceOwnerId
 }
 
 /**
@@ -130,9 +137,9 @@ export async function canModifyResource(
  */
 export function getClientInfo(request: NextRequest) {
   return {
-    ipAddress: request.headers.get('x-forwarded-for') ||
-               request.headers.get('x-real-ip') ||
-               'unknown',
+    ipAddress: request.headers.get('x-forwarded-for') || 
+                  request.headers.get('x-real-ip') ||
+                  'unknown',
     userAgent: request.headers.get('user-agent') || 'unknown',
   }
 }
