@@ -67,6 +67,10 @@ const initialFormData: FormData = {
   notes: '',
 }
 
+function formatStatus(status: string) {
+  return status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
+}
+
 export default function ShipmentsPage() {
   const [shipments, setShipments] = useState<Shipment[]>([])
   const [loading, setLoading] = useState(true)
@@ -305,11 +309,6 @@ export default function ShipmentsPage() {
     'Delivery Date': formatDate(shipment.deliveryDate),
     'Total Cost': formatCurrency(shipment.totalCost),
   }))
-
-  // Format status for display
-  const formatStatus = (status: string) => {
-    return status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
-  }
 
   return (
     <div className="p-6 lg:p-8">
