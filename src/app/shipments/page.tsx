@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Search, Filter, Plus, Eye, Edit, Truck, Download, X, Loader2 } from 'lucide-react'
+import { Search, Filter, Plus, Eye, Edit, Truck, Download, X, Loader2, Trash2 } from 'lucide-react'
+import { toast } from 'react-hot-toast'
 import { exportToCSV, exportToExcel, formatDate, formatCurrency } from '@/lib/export'
 import StatusPipeline, { StatusBadge, SHIPMENT_PIPELINE } from '@/components/StatusPipeline'
 
@@ -76,6 +77,7 @@ export default function ShipmentsPage() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [showFilterPanel, setShowFilterPanel] = useState(false)
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null)
+  const [editingShipment, setEditingShipment] = useState<Shipment | null>(null)
   const [formData, setFormData] = useState<FormData>(initialFormData)
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
@@ -164,8 +166,8 @@ export default function ShipmentsPage() {
     try {
       setSubmitting(true)
 
-      const response = await fetch('/api/shipments', {
-        method: 'POST',
+      const response = await fetch(editingShipment ? `/api/shipments/${editingShipment.id}` : '/api/shipments', {
+        method: editingShipment ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           podName: formData.podName,
@@ -204,15 +206,105 @@ export default function ShipmentsPage() {
       setFormData(initialFormData)
       setFormErrors({})
       setShowAddModal(false)
+      setEditingShipment(null)
       await fetchShipments()
+      toast.success(editingShipment ? 'Shipment updated successfully' : 'Shipment created successfully')
 
     } catch (err) {
       console.error('Error creating shipment:', err)
-      setFormErrors(prev => ({ ...prev, submit: err instanceof Error ? err.message : 'Failed to create shipment' }))
+      setFormErrors(prev => ({ ...prev, submit: err instanceof Error ? err.message : 'Failed to save shipment' }))
     } finally {
       setSubmitting(false)
     }
   }
+
+  const openAddModal = () => {
+    setEditingShipment(null)
+    setFormData(initialFormData)
+    setFormErrors({})
+    setShowAddModal(true)
+  }
+
+  const openEditModal = (shipment: Shipment) => {
+    setEditingShipment(shipment)
+    setFormData({
+      podName: shipment.podName,
+      shippingAddress: shipment.shippingAddress,
+      contactPerson: shipment.contactPerson,
+      mobileNumber: shipment.mobileNumber,
+      cpus: String(shipment.cpus),
+      serials: shipment.serials || '',
+      trackingId: shipment.trackingId || '',
+      qcReport: shipment.qcReport || '',
+      signedQc: shipment.signedQc || '',
+      orderDate: shipment.orderDate.split('T')[0],
+      dispatchDate: shipment.dispatchDate ? shipment.dispatchDate.split('T')[0] : '',
+      deliveryDate: shipment.deliveryDate ? shipment.deliveryDate.split('T')[0] : '',
+      totalCost: String(shipment.totalCost || ''),
+      notes: shipment.notes || '',
+    })
+    setFormErrors({})
+    setShowAddModal(true)
+  }
+
+  const handleDeleteShipment = async (shipmentId: string) => {
+    if (!window.confirm('Delete this shipment?')) return
+
+    try {
+      const response = await fetch(`/api/shipments/${shipmentId}`, { method: 'DELETE' })
+      if (!response.ok) throw new Error('Failed to delete shipment')
+
+      toast.success('Shipment deleted successfully')
+      if (selectedShipment?.id === shipmentId) {
+        setSelectedShipment(null)
+      }
+      await fetchShipments()
+    } catch (err) {
+      console.error(err)
+      toast.error('Failed to delete shipment')
+    }
+  }
+
+  const handleAdvanceStatus = async (shipment: Shipment) => {
+    const currentIndex = SHIPMENT_PIPELINE.findIndex((step) => step.value === shipment.status)
+    const nextStatus = SHIPMENT_PIPELINE[currentIndex + 1]?.value
+
+    if (!nextStatus) return
+
+    try {
+      const response = await fetch(`/api/shipments/${shipment.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: nextStatus }),
+      })
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to advance shipment status')
+      }
+
+      toast.success(`Shipment moved to ${formatStatus(nextStatus)}`)
+      setSelectedShipment(data)
+      await fetchShipments()
+    } catch (err) {
+      console.error(err)
+      toast.error(err instanceof Error ? err.message : 'Failed to advance status')
+    }
+  }
+
+  const exportRows = filteredShipments.map((shipment) => ({
+    'Ref ID': shipment.refId,
+    'POD Name': shipment.podName,
+    CPUs: shipment.cpus,
+    Components: shipment.components || '',
+    'Contact Person': shipment.contactPerson,
+    'Mobile Number': shipment.mobileNumber,
+    'Tracking ID': shipment.trackingId || '',
+    Status: formatStatus(shipment.status),
+    'Order Date': formatDate(shipment.orderDate),
+    'Dispatch Date': formatDate(shipment.dispatchDate),
+    'Delivery Date': formatDate(shipment.deliveryDate),
+    'Total Cost': formatCurrency(shipment.totalCost),
+  }))
 
   // Format status for display
   const formatStatus = (status: string) => {
@@ -240,14 +332,21 @@ export default function ShipmentsPage() {
             Filters
           </button>
           <button 
-            onClick={() => exportToCSV(filteredShipments as unknown as Record<string, unknown>[], 'shipments')}
+            onClick={() => exportToCSV(exportRows, 'shipments')}
             className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors"
           >
             <Download className="w-5 h-5" />
             CSV
           </button>
           <button 
-            onClick={() => setShowAddModal(true)}
+            onClick={() => exportToExcel(exportRows, 'shipments')}
+            className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors"
+          >
+            <Download className="w-5 h-5" />
+            Excel
+          </button>
+          <button 
+            onClick={openAddModal}
             className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
           >
             <Plus className="w-5 h-5" />
@@ -352,7 +451,7 @@ export default function ShipmentsPage() {
                 {filteredShipments.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
-                      No shipments found. Click "Add Shipment" to create one.
+                      No shipments found. Click Add Shipment to create one.
                     </td>
                   </tr>
                 ) : (
@@ -391,8 +490,11 @@ export default function ShipmentsPage() {
                           >
                             <Eye className="w-5 h-5" />
                           </button>
-                          <button className="p-1 text-gray-400 hover:text-gray-600">
+                          <button onClick={() => openEditModal(shipment)} className="p-1 text-gray-400 hover:text-gray-600">
                             <Edit className="w-5 h-5" />
+                          </button>
+                          <button onClick={() => handleDeleteShipment(shipment.id)} className="p-1 text-gray-400 hover:text-red-600">
+                            <Trash2 className="w-5 h-5" />
                           </button>
                         </div>
                       </td>
@@ -411,13 +513,14 @@ export default function ShipmentsPage() {
           <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-gray-900">Add New Shipment</h2>
-                <button 
-                  onClick={() => {
-                    setShowAddModal(false)
-                    setFormData(initialFormData)
-                    setFormErrors({})
-                  }}
+                  <h2 className="text-xl font-semibold text-gray-900">{editingShipment ? 'Edit Shipment' : 'Add New Shipment'}</h2>
+                  <button 
+                    onClick={() => {
+                      setShowAddModal(false)
+                      setEditingShipment(null)
+                      setFormData(initialFormData)
+                      setFormErrors({})
+                    }}
                   className="text-gray-400 hover:text-gray-600"
                 >
                   ✕
@@ -605,6 +708,7 @@ export default function ShipmentsPage() {
                   type="button"
                   onClick={() => {
                     setShowAddModal(false)
+                    setEditingShipment(null)
                     setFormData(initialFormData)
                     setFormErrors({})
                   }}
@@ -619,7 +723,7 @@ export default function ShipmentsPage() {
                   className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
                   {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-                  {submitting ? 'Adding...' : 'Add Shipment'}
+                  {submitting ? (editingShipment ? 'Saving...' : 'Adding...') : (editingShipment ? 'Save Shipment' : 'Add Shipment')}
                 </button>
               </div>
             </form>
@@ -654,6 +758,29 @@ export default function ShipmentsPage() {
                   steps={SHIPMENT_PIPELINE} 
                   currentStatus={selectedShipment.status} 
                 />
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <button
+                    onClick={() => handleAdvanceStatus(selectedShipment)}
+                    disabled={selectedShipment.status === 'COMPLETED'}
+                    className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-gray-300"
+                  >
+                    {selectedShipment.status === 'COMPLETED'
+                      ? 'Completed'
+                      : `Advance to ${formatStatus(SHIPMENT_PIPELINE[SHIPMENT_PIPELINE.findIndex((step) => step.value === selectedShipment.status) + 1]?.value || selectedShipment.status)}`}
+                  </button>
+                  <button
+                    onClick={() => openEditModal(selectedShipment)}
+                    className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700"
+                  >
+                    Edit Shipment
+                  </button>
+                  <button
+                    onClick={() => handleDeleteShipment(selectedShipment.id)}
+                    className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white"
+                  >
+                    Delete Shipment
+                  </button>
+                </div>
               </div>
               
               <div className="grid grid-cols-2 gap-4">

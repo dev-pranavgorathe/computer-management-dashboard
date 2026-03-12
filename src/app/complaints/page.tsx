@@ -1,215 +1,654 @@
 'use client'
 
-import { useState } from 'react'
-import { Search, Plus, Eye, Edit, AlertTriangle, CheckCircle, Clock } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { AlertTriangle, Download, Edit, Eye, Loader2, Plus, Search, Trash2 } from 'lucide-react'
+import { toast } from 'react-hot-toast'
+import Modal from '@/components/Modal'
+import { exportToCSV, exportToExcel, formatDate } from '@/lib/export'
 
-// Mock data
-const complaints = [
-  {
-    id: 'CMP001',
-    podName: 'POD Mumbai Central',
-    complaintDate: '2024-02-10',
-    issueType: 'Hardware',
-    description: 'Monitor not working properly',
-    priority: 'High',
-    status: 'In Progress',
-    assignedTo: 'Tech Team A',
-    resolutionDate: null,
-  },
-  {
-    id: 'CMP002',
-    podName: 'POD Delhi North',
-    complaintDate: '2024-02-08',
-    issueType: 'Software',
-    description: 'Operating system crash',
-    priority: 'Medium',
-    status: 'Solved',
-    assignedTo: 'Tech Team B',
-    resolutionDate: '2024-02-09',
-  },
-  {
-    id: 'CMP003',
-    podName: 'POD Bangalore Tech',
-    complaintDate: '2024-02-12',
-    issueType: 'Network',
-    description: 'Internet connectivity issues',
-    priority: 'High',
-    status: 'Pending',
-    assignedTo: null,
-    resolutionDate: null,
-  },
-]
-
-const statusColors: Record<string, string> = {
-  'Solved': 'bg-green-100 text-green-700',
-  'In Progress': 'bg-blue-100 text-blue-700',
-  'Pending': 'bg-yellow-100 text-yellow-700',
+interface Complaint {
+  id: string
+  refId: string
+  ticket: string
+  podName: string
+  phase?: string | null
+  deviceType: string
+  deviceSerial?: string | null
+  issue: string
+  description?: string | null
+  contactPerson?: string | null
+  mobileNumber?: string | null
+  reportedDate?: string
+  solvedDate?: string | null
+  resolution?: string | null
+  remarks?: string | null
+  attachments?: string | null
+  status: 'OPEN' | 'IN_PROGRESS' | 'SOLVED'
+  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+  createdAt: string
 }
 
-const priorityColors: Record<string, string> = {
-  'High': 'bg-red-100 text-red-700',
-  'Medium': 'bg-orange-100 text-orange-700',
-  'Low': 'bg-gray-100 text-gray-700',
+interface ComplaintFormData {
+  podName: string
+  phase: string
+  deviceType: string
+  deviceSerial: string
+  issue: string
+  description: string
+  contactPerson: string
+  mobileNumber: string
+  priority: Complaint['priority']
+  status: Complaint['status']
+  resolution: string
+  remarks: string
+}
+
+const initialFormData: ComplaintFormData = {
+  podName: '',
+  phase: '',
+  deviceType: 'CPU',
+  deviceSerial: '',
+  issue: '',
+  description: '',
+  contactPerson: '',
+  mobileNumber: '',
+  priority: 'MEDIUM',
+  status: 'OPEN',
+  resolution: '',
+  remarks: '',
+}
+
+const statusColors: Record<Complaint['status'], string> = {
+  OPEN: 'bg-yellow-100 text-yellow-700',
+  IN_PROGRESS: 'bg-blue-100 text-blue-700',
+  SOLVED: 'bg-green-100 text-green-700',
+}
+
+const priorityColors: Record<Complaint['priority'], string> = {
+  LOW: 'bg-gray-100 text-gray-700',
+  MEDIUM: 'bg-orange-100 text-orange-700',
+  HIGH: 'bg-red-100 text-red-700',
+  CRITICAL: 'bg-rose-100 text-rose-700',
+}
+
+const deviceTypes = ['CPU', 'MONITOR', 'KEYBOARD', 'MOUSE', 'WEBCAM', 'HEADPHONES', 'PSU', 'NETWORK_ADAPTER', 'OTHER']
+
+function getFormData(complaint?: Complaint | null): ComplaintFormData {
+  if (!complaint) {
+    return initialFormData
+  }
+
+  return {
+    podName: complaint.podName,
+    phase: complaint.phase || '',
+    deviceType: complaint.deviceType,
+    deviceSerial: complaint.deviceSerial || '',
+    issue: complaint.issue,
+    description: complaint.description || '',
+    contactPerson: complaint.contactPerson || '',
+    mobileNumber: complaint.mobileNumber || '',
+    priority: complaint.priority,
+    status: complaint.status,
+    resolution: complaint.resolution || '',
+    remarks: complaint.remarks || '',
+  }
 }
 
 export default function ComplaintsPage() {
+  const [complaints, setComplaints] = useState<Complaint[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [priorityFilter, setPriorityFilter] = useState('all')
+  const [deviceTypeFilter, setDeviceTypeFilter] = useState('all')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalRecords, setTotalRecords] = useState(0)
+  const [showFormModal, setShowFormModal] = useState(false)
+  const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null)
+  const [editingComplaint, setEditingComplaint] = useState<Complaint | null>(null)
+  const [formData, setFormData] = useState<ComplaintFormData>(initialFormData)
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+  const [submitting, setSubmitting] = useState(false)
 
-  const filteredComplaints = complaints.filter((complaint) => {
-    const matchesSearch = complaint.podName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      complaint.id.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = statusFilter === 'all' || complaint.status === statusFilter
-    return matchesSearch && matchesStatus
-  })
+  const fetchComplaints = async () => {
+    try {
+      setLoading(true)
+      const params = new URLSearchParams({
+        page: String(currentPage),
+        limit: '25',
+      })
+
+      if (searchTerm) params.set('search', searchTerm)
+      if (statusFilter !== 'all') params.set('status', statusFilter)
+      if (priorityFilter !== 'all') params.set('priority', priorityFilter)
+      if (deviceTypeFilter !== 'all') params.set('deviceType', deviceTypeFilter)
+
+      const response = await fetch(`/api/complaints?${params.toString()}`)
+      if (!response.ok) throw new Error('Failed to fetch complaints')
+
+      const data = await response.json()
+      setComplaints(data.complaints || [])
+      setTotalPages(data.pagination?.totalPages || 1)
+      setTotalRecords(data.pagination?.total || 0)
+      setError(null)
+    } catch (err) {
+      console.error(err)
+      setError('Failed to load complaints.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchComplaints()
+  }, [currentPage, searchTerm, statusFilter, priorityFilter, deviceTypeFilter])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchTerm, statusFilter, priorityFilter, deviceTypeFilter])
 
   const stats = {
-    total: complaints.length,
-    solved: complaints.filter(c => c.status === 'Solved').length,
-    inProgress: complaints.filter(c => c.status === 'In Progress').length,
-    pending: complaints.filter(c => c.status === 'Pending').length,
+    total: totalRecords,
+    solved: complaints.filter(complaint => complaint.status === 'SOLVED').length,
+    inProgress: complaints.filter(complaint => complaint.status === 'IN_PROGRESS').length,
+    open: complaints.filter(complaint => complaint.status === 'OPEN').length,
   }
+
+  const handleInputChange = (
+    event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = event.target
+    setFormData(prev => ({ ...prev, [name]: value }))
+    if (formErrors[name]) {
+      setFormErrors(prev => ({ ...prev, [name]: '' }))
+    }
+  }
+
+  const handleOpenCreate = () => {
+    setEditingComplaint(null)
+    setFormData(initialFormData)
+    setFormErrors({})
+    setShowFormModal(true)
+  }
+
+  const handleOpenEdit = async (id: string) => {
+    try {
+      const response = await fetch(`/api/complaints/${id}`)
+      if (!response.ok) throw new Error('Failed to fetch complaint')
+      const complaint = await response.json()
+      setEditingComplaint(complaint)
+      setFormData(getFormData(complaint))
+      setFormErrors({})
+      setShowFormModal(true)
+    } catch (err) {
+      console.error(err)
+      toast.error('Failed to open complaint editor')
+    }
+  }
+
+  const handleOpenView = async (id: string) => {
+    try {
+      const response = await fetch(`/api/complaints/${id}`)
+      if (!response.ok) throw new Error('Failed to fetch complaint')
+      setSelectedComplaint(await response.json())
+    } catch (err) {
+      console.error(err)
+      toast.error('Failed to load complaint details')
+    }
+  }
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault()
+
+    try {
+      setSubmitting(true)
+      setFormErrors({})
+
+      const payload: Record<string, string | null> = {
+        podName: formData.podName,
+        phase: formData.phase || null,
+        deviceType: formData.deviceType,
+        deviceSerial: formData.deviceSerial || null,
+        issue: formData.issue,
+        description: formData.description || null,
+        contactPerson: formData.contactPerson || null,
+        mobileNumber: formData.mobileNumber || null,
+        priority: formData.priority,
+      }
+
+      if (editingComplaint) {
+        payload.status = formData.status
+        payload.resolution = formData.resolution || null
+        payload.remarks = formData.remarks || null
+        payload.solvedDate = formData.status === 'SOLVED' ? new Date().toISOString() : null
+      }
+
+      const response = await fetch(
+        editingComplaint ? `/api/complaints/${editingComplaint.id}` : '/api/complaints',
+        {
+          method: editingComplaint ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        }
+      )
+
+      const data = await response.json()
+      if (!response.ok) {
+        if (data.details) {
+          const nextErrors: Record<string, string> = {}
+          data.details.forEach((detail: { field: string; message: string }) => {
+            nextErrors[detail.field] = detail.message
+          })
+          setFormErrors(nextErrors)
+        }
+        throw new Error(data.error || 'Failed to save complaint')
+      }
+
+      toast.success(editingComplaint ? 'Complaint updated' : 'Complaint created')
+      setShowFormModal(false)
+      setEditingComplaint(null)
+      setFormData(initialFormData)
+      fetchComplaints()
+    } catch (err) {
+      console.error(err)
+      setFormErrors(prev => ({
+        ...prev,
+        submit: err instanceof Error ? err.message : 'Failed to save complaint',
+      }))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Delete this complaint?')) return
+
+    try {
+      const response = await fetch(`/api/complaints/${id}`, { method: 'DELETE' })
+      if (!response.ok) throw new Error('Failed to delete complaint')
+      toast.success('Complaint deleted')
+      if (selectedComplaint?.id === id) setSelectedComplaint(null)
+      fetchComplaints()
+    } catch (err) {
+      console.error(err)
+      toast.error('Failed to delete complaint')
+    }
+  }
+
+  const exportRows = complaints.map(complaint => ({
+    'Ref ID': complaint.refId,
+    Ticket: complaint.ticket,
+    POD: complaint.podName,
+    'Device Type': complaint.deviceType,
+    Issue: complaint.issue,
+    Priority: complaint.priority,
+    Status: complaint.status,
+    'Contact Person': complaint.contactPerson || '',
+    'Mobile Number': complaint.mobileNumber || '',
+    'Reported Date': formatDate(complaint.createdAt),
+    'Solved Date': formatDate(complaint.solvedDate || null),
+  }))
 
   return (
     <div className="p-6 lg:p-8">
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-8 gap-4">
+      <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold text-gray-900">Complaint Management</h1>
-          <p className="text-gray-500 mt-1">Track and resolve POD complaints</p>
+          <h1 className="text-2xl font-bold text-gray-900 lg:text-3xl">Complaint Management</h1>
+          <p className="mt-1 text-gray-500">Track and resolve real complaints from the database</p>
         </div>
-        <button 
-          className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
-        >
-          <Plus className="w-5 h-5" />
-          Log Complaint
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => exportToCSV(exportRows, 'complaints')}
+            className="flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-gray-600 hover:bg-gray-50"
+          >
+            <Download className="h-5 w-5" />
+            CSV
+          </button>
+          <button
+            onClick={() => exportToExcel(exportRows, 'complaints')}
+            className="flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-gray-600 hover:bg-gray-50"
+          >
+            <Download className="h-5 w-5" />
+            Excel
+          </button>
+          <button
+            onClick={handleOpenCreate}
+            className="flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-white hover:bg-primary-700"
+          >
+            <Plus className="h-5 w-5" />
+            Log Complaint
+          </button>
+        </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
           <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
-          <div className="text-sm text-gray-500">Total Complaints</div>
+          <div className="text-sm text-gray-500">Total Records</div>
         </div>
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
           <div className="text-2xl font-bold text-green-600">{stats.solved}</div>
-          <div className="text-sm text-gray-500">Solved</div>
+          <div className="text-sm text-gray-500">Solved on this page</div>
         </div>
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
           <div className="text-2xl font-bold text-blue-600">{stats.inProgress}</div>
           <div className="text-sm text-gray-500">In Progress</div>
         </div>
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-          <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
-          <div className="text-sm text-gray-500">Pending</div>
+        <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+          <div className="text-2xl font-bold text-yellow-600">{stats.open}</div>
+          <div className="text-sm text-gray-500">Open</div>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-6">
-        <div className="flex flex-col lg:flex-row gap-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+      <div className="mb-6 rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
+          <div className="relative lg:col-span-2">
+            <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
             <input
-              type="text"
-              placeholder="Search by POD name or complaint ID..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              onChange={event => setSearchTerm(event.target.value)}
+              placeholder="Search by POD, ref ID, ticket, issue, serial..."
+              className="w-full rounded-lg border border-gray-200 py-2 pl-10 pr-4 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
           </div>
-          <div className="flex gap-2 flex-wrap">
-            {['all', 'Pending', 'In Progress', 'Solved'].map((status) => (
-              <button
-                key={status}
-                onClick={() => setStatusFilter(status)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  statusFilter === status
-                    ? 'bg-primary-100 text-primary-700'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                {status === 'all' ? 'All Status' : status}
-              </button>
+          <select
+            value={statusFilter}
+            onChange={event => setStatusFilter(event.target.value)}
+            className="rounded-lg border border-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+          >
+            <option value="all">All statuses</option>
+            <option value="OPEN">Open</option>
+            <option value="IN_PROGRESS">In Progress</option>
+            <option value="SOLVED">Solved</option>
+          </select>
+          <select
+            value={priorityFilter}
+            onChange={event => setPriorityFilter(event.target.value)}
+            className="rounded-lg border border-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+          >
+            <option value="all">All priorities</option>
+            <option value="LOW">Low</option>
+            <option value="MEDIUM">Medium</option>
+            <option value="HIGH">High</option>
+            <option value="CRITICAL">Critical</option>
+          </select>
+          <select
+            value={deviceTypeFilter}
+            onChange={event => setDeviceTypeFilter(event.target.value)}
+            className="rounded-lg border border-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500"
+          >
+            <option value="all">All device types</option>
+            {deviceTypes.map(type => (
+              <option key={type} value={type}>
+                {type.replace(/_/g, ' ')}
+              </option>
             ))}
-          </div>
+          </select>
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Complaint ID
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  POD Name
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Issue Type
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Priority
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Date
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {filteredComplaints.map((complaint) => (
-                <tr key={complaint.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="font-medium text-gray-900">{complaint.id}</span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="font-medium text-gray-900">{complaint.podName}</div>
-                    <div className="text-sm text-gray-500 truncate max-w-xs">{complaint.description}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-sm">
-                      {complaint.issueType}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${priorityColors[complaint.priority]}`}>
-                      {complaint.priority}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColors[complaint.status]}`}>
-                      {complaint.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-gray-500">
-                    {complaint.complaintDate}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button className="p-1 text-gray-400 hover:text-gray-600">
-                        <Eye className="w-5 h-5" />
-                      </button>
-                      <button className="p-1 text-gray-400 hover:text-gray-600">
-                        <Edit className="w-5 h-5" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {loading ? (
+        <div className="flex min-h-[240px] items-center justify-center rounded-xl border border-gray-100 bg-white">
+          <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
+          <span className="ml-3 text-gray-600">Loading complaints...</span>
         </div>
-      </div>
+      ) : error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-red-700">{error}</div>
+      ) : (
+        <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="border-b border-gray-200 bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Complaint</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">POD</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Device</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Priority</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Created</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {complaints.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                      No complaints found for the current filters.
+                    </td>
+                  </tr>
+                ) : (
+                  complaints.map(complaint => (
+                    <tr key={complaint.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4">
+                        <div className="font-medium text-gray-900">{complaint.refId}</div>
+                        <div className="text-sm text-gray-500">{complaint.ticket}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="font-medium text-gray-900">{complaint.podName}</div>
+                        <div className="max-w-xs truncate text-sm text-gray-500">{complaint.issue}</div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-700">
+                        <div>{complaint.deviceType.replace(/_/g, ' ')}</div>
+                        <div className="text-gray-500">{complaint.deviceSerial || '-'}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`rounded px-2 py-1 text-xs font-medium ${priorityColors[complaint.priority]}`}>
+                          {complaint.priority}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`rounded-full px-3 py-1 text-xs font-medium ${statusColors[complaint.status]}`}>
+                          {complaint.status.replace(/_/g, ' ')}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-500">{formatDate(complaint.createdAt)}</td>
+                      <td className="px-6 py-4">
+                        <div className="flex justify-end gap-2">
+                          <button onClick={() => handleOpenView(complaint.id)} className="p-1 text-gray-400 hover:text-gray-700">
+                            <Eye className="h-5 w-5" />
+                          </button>
+                          <button onClick={() => handleOpenEdit(complaint.id)} className="p-1 text-gray-400 hover:text-gray-700">
+                            <Edit className="h-5 w-5" />
+                          </button>
+                          <button onClick={() => handleDelete(complaint.id)} className="p-1 text-gray-400 hover:text-red-600">
+                            <Trash2 className="h-5 w-5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex items-center justify-between border-t border-gray-200 px-6 py-4 text-sm text-gray-500">
+            <span>Showing page {currentPage} of {totalPages} • {totalRecords} total records</span>
+            <div className="flex gap-2">
+              <button
+                disabled={currentPage === 1}
+                onClick={() => setCurrentPage(prev => prev - 1)}
+                className="rounded border border-gray-200 px-3 py-1 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Previous
+              </button>
+              <button
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage(prev => prev + 1)}
+                className="rounded border border-gray-200 px-3 py-1 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showFormModal ? (
+        <Modal
+          title={editingComplaint ? 'Edit Complaint' : 'Log Complaint'}
+          subtitle={editingComplaint?.refId}
+          onClose={() => {
+            setShowFormModal(false)
+            setEditingComplaint(null)
+            setFormData(initialFormData)
+            setFormErrors({})
+          }}
+          maxWidthClassName="max-w-2xl"
+        >
+          <form onSubmit={handleSubmit} className="space-y-4 p-6">
+            {formErrors.submit ? (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{formErrors.submit}</div>
+            ) : null}
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">POD Name</label>
+                <input name="podName" value={formData.podName} onChange={handleInputChange} className="w-full rounded-lg border border-gray-200 px-3 py-2" />
+                {formErrors.podName ? <p className="mt-1 text-xs text-red-500">{formErrors.podName}</p> : null}
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Phase</label>
+                <input name="phase" value={formData.phase} onChange={handleInputChange} className="w-full rounded-lg border border-gray-200 px-3 py-2" />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Device Type</label>
+                <select name="deviceType" value={formData.deviceType} onChange={handleInputChange} className="w-full rounded-lg border border-gray-200 px-3 py-2">
+                  {deviceTypes.map(type => (
+                    <option key={type} value={type}>{type.replace(/_/g, ' ')}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Device Serial</label>
+                <input name="deviceSerial" value={formData.deviceSerial} onChange={handleInputChange} className="w-full rounded-lg border border-gray-200 px-3 py-2" />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Priority</label>
+                <select name="priority" value={formData.priority} onChange={handleInputChange} className="w-full rounded-lg border border-gray-200 px-3 py-2">
+                  <option value="LOW">Low</option>
+                  <option value="MEDIUM">Medium</option>
+                  <option value="HIGH">High</option>
+                  <option value="CRITICAL">Critical</option>
+                </select>
+              </div>
+              {editingComplaint ? (
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Status</label>
+                  <select name="status" value={formData.status} onChange={handleInputChange} className="w-full rounded-lg border border-gray-200 px-3 py-2">
+                    <option value="OPEN">Open</option>
+                    <option value="IN_PROGRESS">In Progress</option>
+                    <option value="SOLVED">Solved</option>
+                  </select>
+                </div>
+              ) : null}
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Contact Person</label>
+                <input name="contactPerson" value={formData.contactPerson} onChange={handleInputChange} className="w-full rounded-lg border border-gray-200 px-3 py-2" />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Mobile Number</label>
+                <input name="mobileNumber" value={formData.mobileNumber} onChange={handleInputChange} className="w-full rounded-lg border border-gray-200 px-3 py-2" />
+              </div>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Issue</label>
+              <input name="issue" value={formData.issue} onChange={handleInputChange} className="w-full rounded-lg border border-gray-200 px-3 py-2" />
+              {formErrors.issue ? <p className="mt-1 text-xs text-red-500">{formErrors.issue}</p> : null}
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Description</label>
+              <textarea name="description" value={formData.description} onChange={handleInputChange} rows={3} className="w-full rounded-lg border border-gray-200 px-3 py-2" />
+            </div>
+            {editingComplaint ? (
+              <>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Resolution</label>
+                  <textarea name="resolution" value={formData.resolution} onChange={handleInputChange} rows={2} className="w-full rounded-lg border border-gray-200 px-3 py-2" />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Remarks</label>
+                  <textarea name="remarks" value={formData.remarks} onChange={handleInputChange} rows={2} className="w-full rounded-lg border border-gray-200 px-3 py-2" />
+                </div>
+              </>
+            ) : null}
+            <div className="flex justify-end gap-3 pt-2">
+              <button type="button" onClick={() => setShowFormModal(false)} className="rounded-lg border border-gray-200 px-4 py-2 text-gray-600">
+                Cancel
+              </button>
+              <button type="submit" disabled={submitting} className="flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-white disabled:opacity-50">
+                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {editingComplaint ? 'Save Changes' : 'Create Complaint'}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      ) : null}
+
+      {selectedComplaint ? (
+        <Modal
+          title="Complaint Details"
+          subtitle={`${selectedComplaint.refId} • ${selectedComplaint.ticket}`}
+          onClose={() => setSelectedComplaint(null)}
+        >
+          <div className="space-y-6 p-6">
+            <div className="flex flex-wrap gap-3">
+              <span className={`rounded-full px-3 py-1 text-xs font-medium ${statusColors[selectedComplaint.status]}`}>
+                {selectedComplaint.status.replace(/_/g, ' ')}
+              </span>
+              <span className={`rounded px-2 py-1 text-xs font-medium ${priorityColors[selectedComplaint.priority]}`}>
+                {selectedComplaint.priority}
+              </span>
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <p className="text-sm text-gray-500">POD Name</p>
+                <p className="font-medium text-gray-900">{selectedComplaint.podName}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Device Type</p>
+                <p className="font-medium text-gray-900">{selectedComplaint.deviceType.replace(/_/g, ' ')}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Device Serial</p>
+                <p className="font-medium text-gray-900">{selectedComplaint.deviceSerial || '-'}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Reported</p>
+                <p className="font-medium text-gray-900">{formatDate(selectedComplaint.createdAt)}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Contact Person</p>
+                <p className="font-medium text-gray-900">{selectedComplaint.contactPerson || '-'}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Mobile Number</p>
+                <p className="font-medium text-gray-900">{selectedComplaint.mobileNumber || '-'}</p>
+              </div>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Issue</p>
+              <p className="font-medium text-gray-900">{selectedComplaint.issue}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Description</p>
+              <p className="text-gray-900">{selectedComplaint.description || '-'}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500">Resolution</p>
+              <p className="text-gray-900">{selectedComplaint.resolution || '-'}</p>
+            </div>
+            <div className="flex justify-end gap-3 border-t border-gray-100 pt-4">
+              <button onClick={() => handleOpenEdit(selectedComplaint.id)} className="rounded-lg border border-gray-200 px-4 py-2 text-gray-600">
+                Edit
+              </button>
+              <button onClick={() => handleDelete(selectedComplaint.id)} className="rounded-lg bg-red-600 px-4 py-2 text-white">
+                Delete
+              </button>
+            </div>
+          </div>
+        </Modal>
+      ) : null}
     </div>
   )
 }
