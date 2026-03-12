@@ -17,6 +17,13 @@ export default withAuth(
         if (pathname.startsWith("/auth/") || pathname.startsWith("/api/auth/")) {
           return true
         }
+
+        // Let API routes handle auth themselves (returning 401 JSON),
+        // instead of middleware redirecting to /auth/signin (HTML) which breaks fetch().
+        if (pathname.startsWith("/api/")) {
+          return true
+        }
+
         // Require token for all other pages
         return !!token
       },
