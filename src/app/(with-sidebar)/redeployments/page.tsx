@@ -288,7 +288,7 @@ export default function RedeploymentsPage() {
             <Download className="h-5 w-5" />
             CSV
           </button>
-          <button onClick={() => exportToExcel(exportRows, 'redeployments')} className="flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-gray-600 hover:bg-gray-50">
+          <button onClick={async () => { await exportToExcel(exportRows, 'redeployments') }} className="flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-gray-600 hover:bg-gray-50">
             <Download className="h-5 w-5" />
             Excel
           </button>

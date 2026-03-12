@@ -1,4 +1,7 @@
-import * as XLSX from 'xlsx'
+// NOTE: We intentionally avoid importing `xlsx` at module top-level.
+// In some Next.js/Turbopack client bundles, `xlsx` can cause runtime errors
+// (e.g. "Cannot access 'z' before initialization") even before the user clicks export.
+// So we lazy-load it only when needed.
 
 // Export data to CSV
 export function exportToCSV<T extends Record<string, unknown>>(data: T[], filename: string): void {
@@ -36,12 +39,14 @@ export function exportToCSV<T extends Record<string, unknown>>(data: T[], filena
   document.body.removeChild(link)
 }
 
-// Export data to Excel
-export function exportToExcel<T extends Record<string, unknown>>(data: T[], filename: string): void {
+// Export data to Excel (lazy-load xlsx)
+export async function exportToExcel<T extends Record<string, unknown>>(data: T[], filename: string): Promise<void> {
   if (!data.length) {
     alert('No data to export')
     return
   }
+
+  const XLSX = await import('xlsx')
 
   const worksheet = XLSX.utils.json_to_sheet(data)
   const workbook = XLSX.utils.book_new()

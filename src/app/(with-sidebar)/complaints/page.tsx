@@ -412,7 +412,7 @@ Reported Date: ${formatDate(complaint.createdAt)}
             CSV
           </button>
           <button
-            onClick={() => exportToExcel(exportRows, 'complaints')}
+            onClick={async () => { await exportToExcel(exportRows, 'complaints') }}
             className="flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-gray-600 hover:bg-gray-50"
           >
             <Download className="h-5 w-5" />
