@@ -96,6 +96,29 @@ WordPress + React/Next.js implementer for business and social-impact teams.
 - "Reduced manual tracking effort by Z%"
 - "Improved load time from A sec to B sec"
 
+### 2.4.1 Verified Experience Entries (Add exactly)
+
+#### BeyondExams — Teacher Coordinator Intern (LearnFromPeers)
+- Duration: **Dec 01, 2021 → Jul 31, 2022**
+- Location: New Delhi, India
+- Key contributions:
+  - Built advanced web-development projects
+  - Taught students via peer-learning model
+  - Contributed actively in educator-team brainstorming sessions
+- Reference contact: `pankaj@beyondexams.org`
+- Certificate label: **Work Experience Certificate**
+
+#### Nandadeep Vidyalaya (Narayan Chandra Trust) — Teacher Coordinator Intern (Web Designing)
+- Duration: **Jul 04, 2024 → Nov 16, 2024**
+- Certificate date: 07.12.2024
+- Key contributions:
+  - Taught Game Development and Website Development
+  - Helped coordinate team execution and program operations
+  - Contributed ideas in planning/brainstorming sessions
+- Certificate label: **Work Experience Certificate**
+
+**UI recommendation:** Add a `Verified Experience` block under Experience with a `View Certificate` button for each PDF.
+
 ---
 
 ## 2.5 Skills Section
