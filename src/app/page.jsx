@@ -3124,7 +3124,10 @@ export default function App() {
 
   return (
     <>
-      <style>{STYLE}</style>
+      <style>{`${STYLE}
+        body > div.flex.h-screen.bg-gray-50 > aside { display: none !important; }
+        body > div.flex.h-screen.bg-gray-50 > main { width: 100% !important; flex: 1 1 auto !important; }
+      `}</style>
       <div style={{ display:"flex", height:"100vh", background:T.bg, fontFamily:"'DM Sans',sans-serif", overflow:"hidden" }}>
         {/* Sidebar */}
         <aside style={{ width:218, background:T.sidebar, display:"flex", flexDirection:"column", flexShrink:0, boxShadow:"2px 0 12px rgba(0,0,0,.15)" }}>
