@@ -31,93 +31,13 @@ const STYLE = `
 /* ─── DATA (from Test_Sheet.xlsx) ─────────────────────────────────────────── */
 const SHIPMENT_PURPOSES = ["New POD","Peripherals","Teach to Earn","Manthan POD","PC Testing","Other"];
 
-const INIT_SHIPMENTS = [
-  {id:"SHP-001",pod:"ZP School Mendgaon",address:"Jilha parishad prathamik shala, Mendgav Ta. Deulgaoraja Dist. Buldhana",status:"Completed",contact:"MAYUR GITE",phone:"7875165940",cpus:0,components:"7 x UPS",model:"Frontech",state:"Maharashtra",email:"gitemayur81@gmail.com",os:"N/A",payment:"Apni Pathshala",purpose:"Peripherals",orderDate:"2026-01-07",dispatchDate:"2026-01-09",deliveryDate:"2026-01-16",remarks:"Sarvesh Informed that instead of Zebronic, currenlty Frontech UPS are available(08/01/2026)\nAsked him to Proceed with the one available(09/01/2026)",setupDate:"2026-01-17",qcIssues:"No",qcReport:"FT2564251202913,\nFT2564251202915,\nFT2564251202916,\nFT2564251203839,\nFT2564251203840,\nFT2564251203837,\nFT2564251203838",shippingCharge:"3500.0",totalCost:"22302.0",trackingId:"",serials:""},
-  {id:"SHP-002",pod:"Vriksh Be The Change",address:"VRIKSH BE THE CHANGE, Manpur Patwatoli, Near Pehani Park,P.O Buniyadganj Gaya, Bihar, 823003",status:"Completed",contact:"Chandrakant Pateshwari",phone:"9310377585",cpus:20,components:"20x CPU i3 Gen 7th REFURBISHED \n\n20x Monitors NEW\n\n20x Keyboards and Mouse NEW\n\n20x Webcams NEW\n\n20x Headphones NEW",model:"20 x CPU i3 Gen 7th",state:"Maharashtra",email:"chandrakantp9164@gmail.com",os:"Zorin",payment:"Apni Pathshala",purpose:"New POD",orderDate:"2026-01-09",dispatchDate:"2026-01-16",deliveryDate:"2026-01-21",remarks:"Order Placed, by confirmation of Shailendra Sir(09/01/2025)\nNo QC report inside box, hence shared with POD team and asked for Signed QC(28/01/2026)\n\nReverse pick up of faulty parts is done\n\nReplacement components are shipped(10/02/2026)\n\nshipment delivered and all working(12/02/2026)",setupDate:"2026-01-22",qcIssues:"Yes",qcReport:"Vriksh Be The Change.pdf\nVriksh Be The Change- 2.pdf\n\nVriksh be the change1.pdf\nVriksh be the change2.pdf",shippingCharge:"4000.0",totalCost:"3,94,120",trackingId:"",serials:""},
-  {id:"SHP-003",pod:"Intensive Intentional Learning",address:"Gyenpothang House, Near Iris villa Below Enchey, Below Enchey Monastery, Chandmari ward 5, Gangtok East district, Sikkim  737103.",status:"Completed",contact:"Rajshree Pradhan",phone:"8710066546",cpus:6,components:"6x CPU i3 Gen 7th REFURBISHED\n\n\n6x Monitors NEW\n\n\n6x Keyboards and Mouse NEW\n\n\n6x Webcams NEW\n\n\n6x Headphones NEW",model:"6x CPU i3 Gen 7th",state:"Maharashtra",email:"rajshreeee114@gmail.com",os:"Zorin",payment:"Apni Pathshala",purpose:"New POD",orderDate:"2026-01-09",dispatchDate:"2026-01-17",deliveryDate:"2026-01-27",remarks:"-",setupDate:"2026-01-28",qcIssues:"No",qcReport:"Intensive Intentional Learning.pdf",shippingCharge:"3000.0",totalCost:"1,20,360",trackingId:"",serials:""},
-  {id:"SHP-004",pod:"MPS Veena Nagar",address:"5WMV+39P, Guru Gobind Singh Marg, Veena Nagar Phase-II, Veena Nagar, Mulund West, Mumbai, Maharashtra 400080.",status:"Completed",contact:"Sai Prasad",phone:"93071 29233",cpus:6,components:"6x CPU i3 Gen 7th REFURBISHED\n\n\n6x Monitors NEW\n\n\n6x Keyboards and Mouse NEW\n\n\n6x Webcams NEW\n\n\n6x Headphones NEW",model:"6x CPU i3 Gen 7th",state:"Maharashtra",email:"saiprasadworkspace@gmail.com",os:"Zorin",payment:"Apni Pathshala",purpose:"New POD",orderDate:"2026-01-09",dispatchDate:"2026-01-20",deliveryDate:"2026-01-20",remarks:"No QC report shared by Scogo(20/01/2026)\n\n1 x VGA not working(21/01/2026)\n\nVGA cable given to POD, all working now",setupDate:"2026-01-21",qcIssues:"Yes",qcReport:"Veena Nagar QC.pdf",shippingCharge:"1000.0",totalCost:"1,18,000",trackingId:"",serials:""},
-  {id:"SHP-005",pod:"Bhavika- Point Of Digital learning",address:"Prithvi Raj, Krishak Bandhu Multi Cold Storage\nPvt Ltd, Ward no 05, Village- Yadavpur, Via- Harshidhi, East Champaran,\nBihar, 845422",status:"Completed",contact:"Prithvi Raj",phone:"885 299 9744",cpus:10,components:"10x CPU i3 Gen 7th REFURBISHED\n\n10x Monitors NEW\n\n10x Keyboards and Mouse NEW\n\n10x Webcams NEW\n\n10x Headphones NEW",model:"10x CPU i3 Gen 7th",state:"Maharashtra",email:"prithvi.raj21-05@iimv.ac.in",os:"Zorin",payment:"Apni Pathshala",purpose:"New POD",orderDate:"2026-01-10",dispatchDate:"2026-01-19",deliveryDate:"2026-01-30",remarks:"-",setupDate:"2026-01-31",qcIssues:"No",qcReport:"Bhavika- Point Of Digital learning.pdf\n\nBhavika- POD.pdf",shippingCharge:"3800.0",totalCost:"1,99,184",trackingId:"",serials:""},
-  {id:"SHP-006",pod:"GUPS -bajrang colony pod",address:"Govt Upper Primary School,\nBajrang Colony,\nRam Nagar, Sodala,\nJaipur-302019 Rajasthan, India\n\nGmap Link:- +VQWG+P2F, Jaipur,\nRajasthan",status:"Completed",contact:"Mrs. SudhaBharadwaj",phone:"99289 84242",cpus:10,components:"10x CPU i3 Gen 7th REFURBISHED\n\n10x Monitors NEW\n\n10x Keyboards and Mouse NEW\n\n10x Webcams NEW\n\n10x Headphones NEW",model:"10x CPU i3 Gen 7th",state:"Maharashtra",email:"gups.ramnagar.bajrang.colony.comp@gmail.com",os:"Zorin",payment:"Apni Pathshala",purpose:"New POD",orderDate:"2026-01-10",dispatchDate:"2026-01-17",deliveryDate:"2026-01-20",remarks:"One screen has vertical line\n\nReverse pick up done of faulty parts\n\nMonitor replacement has been shipped(10/11/2026)",setupDate:"2026-01-20",qcIssues:"Yes",qcReport:"GUPS Bajrang Colony POD.pdf\n\nGUPS.pdf",shippingCharge:"2000.0",totalCost:"1,97,060",trackingId:"",serials:""},
-  {id:"SHP-007",pod:"Teach to Earn - Pratiksha Patil",address:"101, I wing, Valmiki, Rushi Vihar Complex, Phase 1, Manvel Pada Road, Virar East 401305 Maharashtra, India",status:"Order Placed",contact:"Pratiksha Patil",phone:"8087386615",cpus:1,components:"1x CPU i3 Gen 7th REFURBISHED \n\n\n1x Monitor NEW\n\n\n1x Keyboard and Mouse NEW\n\n\n1x Webcam NEW\n\n\n1x Headphone NEW",model:"1x CPU i3 Gen 7th",state:"Maharashtra",email:"19patilpratiksha@gmail.com",os:"Zorin",payment:"Apni Pathshala",purpose:"Teach to Earn",orderDate:"2026-01-12",dispatchDate:"",deliveryDate:"",remarks:"Order cancelled by buyer confirm by sai",setupDate:"",qcIssues:"",qcReport:"",shippingCharge:"",totalCost:"",trackingId:"",serials:""},
-  {id:"SHP-008",pod:"MPS Balaram Street",address:"XR7C+M4C, Balaram St, Grant Road East, Bharat Nagar, Grant Road, Mumbai, Maharashtra 400008",status:"Completed",contact:"Sai Prasad",phone:"93071 29233",cpus:10,components:"10x CPU i3 Gen 7th REFURBISHED\n\n10x Monitors NEW\n\n10x Keyboards and Mouse NEW\n\n10x Webcams NEW\n\n10x Headphones NEW",model:"10x CPU i3 Gen 7th",state:"Maharashtra",email:"saiprasadworkspace@gmail.com",os:"Zorin",payment:"Apni Pathshala",purpose:"New POD",orderDate:"2026-01-22",dispatchDate:"206-01-24",deliveryDate:"2026-01-24",remarks:"Issues in shipments informed via signed QC(31/01/2026)\nScogo assigned engineer and solved those issues(02/02/2026)",setupDate:"2026-01-28",qcIssues:"Yes",qcReport:"MPS Balaram Street.pdf\n\nBalaram MPS School QC.pdf",shippingCharge:"1700.0",totalCost:"2,49,806",trackingId:"",serials:""},
-  {id:"SHP-009",pod:"Shashwat Urja Bioenergy Foundation",address:"S-30 Internal Road, MIDC, Bhosari, Pimpri-Chinchwad, Maharashtra 411026",status:"Completed",contact:"Srishti Deopa",phone:"7899405916",cpus:10,components:"10x CPU i3 Gen 7th REFURBISHED\n\n10x Monitors NEW\n\n10x Keyboards and Mouse NEW\n\n10x Webcams NEW\n\n10x Headphones NEW",model:"10x CPU i3 Gen 7th",state:"Maharashtra",email:"srishti@without.live",os:"Zorin",payment:"Apni Pathshala",purpose:"New POD",orderDate:"2026-01-28",dispatchDate:"2026-01-29",deliveryDate:"2026-02-02",remarks:"Order Placed, by confirmation of Shailendra Sir(28/01/2025)\nSigned QC shared with Scogo to verify and solve issues(03/02/2026)",setupDate:"2026-02-03",qcIssues:"Yes",qcReport:"Shashwat Urja Bioenergy Foundation.pdf\n\nShashwat Urja Bioenergy Foundation.pdf",shippingCharge:"2300.0",totalCost:"2,50,514",trackingId:"",serials:""},
-  {id:"SHP-010",pod:"Z.P.Primary School,Pimpalgan Matha",address:"Z.P. Primary & Secondary School, Pimpalgaon Matha, Tal. Sangamner, Dist.\nAhmednagar (Ahilyanagar), Maharashtra, 422605",status:"Completed",contact:"Anil Dasharath Avhad",phone:"9420790417",cpus:10,components:"10x CPU i3 Gen 7th REFURBISHED\n\n10x Monitors NEW\n\n10x Keyboards and Mouse NEW\n\n10x Webcams NEW\n\n10x Headphones NEW",model:"10x CPU i3 Gen 7th",state:"Maharashtra",email:"anildada2174@gmail.com",os:"Zorin",payment:"Apni Pathshala",purpose:"New POD",orderDate:"2026-01-28",dispatchDate:"2026-01-29",deliveryDate:"2026-02-03",remarks:"Order Placed, by confirmation of Shailendra Sir(28/01/2025)",setupDate:"2026-02-06",qcIssues:"",qcReport:"Z.P Primary School.pdf\nZP Matha.pdf",shippingCharge:"3500.0",totalCost:"2,51,930",trackingId:"",serials:""},
-  {id:"SHP-011",pod:"Manthan- S S N Public school",address:"shanti shiksha niketan ,Takha East Shahganj  Jaunpur.PIN 223101",status:"Completed",contact:"Santosh Kumar Asthana",phone:"9044882742",cpus:10,components:"10x CPU i3 Gen 7th REFURBISHED\n\n10x Monitors NEW\n\n10x Keyboards and Mouse NEW\n\n10x Webcams NEW\n\n10x Headphones NEW",model:"10x CPU i3 Gen 7th",state:"Maharashtra",email:"ssnpublicschool15@gmail.com",os:"Zorin",payment:"Apni Pathshala",purpose:"Manthan POD",orderDate:"2026-01-30",dispatchDate:"2026-01-31",deliveryDate:"2026-02-06",remarks:"-",setupDate:"",qcIssues:"",qcReport:"S S N Public school.pdf",shippingCharge:"3000.0",totalCost:"2,51,340",trackingId:"",serials:""},
-  {id:"SHP-012",pod:"Health Care Foundation",address:"Health Care Foundation, Karunyatheeram Campus, Kattipara P.O, Kozhikode, Kerala- 673573",status:"Completed",contact:"Farsin Ahammed",phone:"9544522053",cpus:10,components:"10x CPU i3 Gen 7th REFURBISHED\n\n10x Monitors NEW\n\n10x Keyboards and Mouse NEW\n\n10x Webcams NEW\n\n10x Headphones NEW",model:"10x CPU i3 Gen 7th",state:"Maharashtra",email:"farsin.hcf@gmail.com",os:"Zorin",payment:"Apni Pathshala",purpose:"New POD",orderDate:"2026-02-05",dispatchDate:"2026-02-07",deliveryDate:"2026-02-17",remarks:"-",setupDate:"2026-02-18",qcIssues:"Yes",qcReport:"Health Care Foundation.pdf\nHCF QC.pdf",shippingCharge:"3000.0",totalCost:"2,51,340",trackingId:"",serials:""},
-  {id:"SHP-013",pod:"Apni Pathshala Office",address:"C-Wing, 2nd Floor, NARAYAN CHANDRA TRUST, Moregoan Talav, Manvelpada Road, Nalasopara East, Maharashtra 401209",status:"Completed",contact:"Pranav Gorathe",phone:"8446248280",cpus:2,components:"2 x CPU i3 Gen 7th REFURBISHED",model:"2 x CPU i3 Gen 7th",state:"Maharashtra",email:"team@apnipathshala.org",os:"Windows",payment:"Pranav",purpose:"PC Testing",orderDate:"2026-02-06",dispatchDate:"2026-02-07",deliveryDate:"2026-02-09",remarks:"New Jaisa PCs For testing",setupDate:"",qcIssues:"",qcReport:"",shippingCharge:"",totalCost:"",trackingId:"",serials:""},
-];
+const INIT_SHIPMENTS = [];
 
-const INIT_COMPLAINTS = [
-  {id:"CMP-001",pod:"Apni Pathshala Office",phase:"Other",org:"Scogo",issue:"1 x CPU",reported:"2026-01-05",solved:"2026-01-29",trackingId:"",ticket:"145250310",resolution:"Replaced",status:"Solved",contact:"",phone:"",description:"",remarks:"",attachments:""},
-  {id:"CMP-002",pod:"Diya Foundation",phase:"2.2",org:"Scogo",issue:"1 x Keyboard",reported:"2026-01-06",solved:"2026-01-16",trackingId:"-",ticket:"145250312",resolution:"Replaced",status:"Solved",contact:"",phone:"",description:"",remarks:"",attachments:""},
-  {id:"CMP-003",pod:"Chachua Education Point",phase:"2.1",org:"Scogo",issue:"1 x CPU (SSD )\n1 x  headphones\n1 x Webcam amount not yet reimbursed",reported:"2026-01-07",solved:"2026-02-24",trackingId:"35187144145\n\nDTDC tracking\nU39722821\n\nIndia Post \nJI624045100IN",ticket:"145250314",resolution:"Replaced",status:"Solved",contact:"",phone:"",description:"",remarks:"",attachments:""},
-  {id:"CMP-004",pod:"LFP_Tardeo",phase:"2.O",org:"Scogo",issue:"1 x monitor",reported:"2026-01-09",solved:"2026-01-12",trackingId:"",ticket:"-",resolution:"Repossession Shipment",status:"Solved",contact:"",phone:"",description:"",remarks:"",attachments:""},
-  {id:"CMP-005",pod:"Apni Pathshala Office",phase:"Other",org:"Scogo",issue:"Issue 1: 1 x  Headphone \n\n- Issue 2: 1 x Adapter\n\n- Issue 3: 2 x CPU",reported:"2026-01-22",solved:"2026-02-09",trackingId:"-",ticket:"145250321",resolution:"Replaced",status:"Solved",contact:"",phone:"",description:"",remarks:"",attachments:""},
-  {id:"CMP-006",pod:"SOF Attigupe Bangalore",phase:"2.O",org:"Scogo",issue:"1 X CPU problem",reported:"2025-12-23",solved:"",trackingId:"-",ticket:"145250322",resolution:"",status:"In Progress",contact:"",phone:"",description:"",remarks:"",attachments:""},
-  {id:"CMP-007",pod:"Atulya Digital Shiksha",phase:"2.1",org:"Scogo",issue:"1 X CPU problem\nMJ05T4H7",reported:"2026-01-23",solved:"",trackingId:"",ticket:"145250323",resolution:"Not resolved",status:"Deleted",contact:"",phone:"",description:"",remarks:"",attachments:""},
-  {id:"CMP-008",pod:"Aman Foundation",phase:"2.O",org:"Selligion",issue:"-",reported:"2026-01-23",solved:"",trackingId:"",ticket:"145250324",resolution:"Not resolved",status:"Deleted",contact:"",phone:"",description:"",remarks:"",attachments:""},
-  {id:"CMP-009",pod:"GUPS Bajrang Colony",phase:"2.2",org:"Scogo",issue:"1 x Keyboard",reported:"2026-01-31",solved:"2026-02-12",trackingId:"58927266344.0",ticket:"145250356",resolution:"Replaced",status:"Solved",contact:"",phone:"",description:"",remarks:"",attachments:""},
-  {id:"CMP-010",pod:"Atulya Digital Shiksha",phase:"2.1",org:"Scogo",issue:"1 X CPU problem\nMJ05T4H7",reported:"2026-01-23",solved:"2026-02-21",trackingId:"18019056860\n\n35187143670",ticket:"145250359",resolution:"Replaced",status:"Solved",contact:"",phone:"",description:"",remarks:"",attachments:""},
-  {id:"CMP-011",pod:"Shashwat Urja Bioenergy Foundation",phase:"2.2",org:"Scogo",issue:"4 x CPUs (No signal issue)\n2 x CPUs (CMOS errors)",reported:"2026-02-05",solved:"2026-02-17",trackingId:"35187140726.0",ticket:"145250357",resolution:"Repaired",status:"Solved",contact:"",phone:"",description:"",remarks:"",attachments:""},
-  {id:"CMP-012",pod:"Aman Foundation",phase:"2.O",org:"Selligion",issue:"5 X CPU \n5 X Monitor",reported:"2026-02-06",solved:"",trackingId:"",ticket:"145250360",resolution:"",status:"In Progress",contact:"",phone:"",description:"",remarks:"",attachments:""},
-  {id:"CMP-013",pod:"Vriksh Be The Change",phase:"2.2",org:"Scogo",issue:"1 x Monitor",reported:"2026-02-07",solved:"2026-02-23",trackingId:"58927265924.0",ticket:"145250361",resolution:"Replaced",status:"Solved",contact:"",phone:"",description:"",remarks:"",attachments:""},
-  {id:"CMP-014",pod:"WTL Foundation School",phase:"2.O",org:"Selligion",issue:"1 X Adapter",reported:"2026-02-07",solved:"2026-02-16",trackingId:"35187140612.0",ticket:"145250362",resolution:"Replaced(charged)",status:"Solved",contact:"",phone:"",description:"",remarks:"",attachments:""},
-  {id:"CMP-015",pod:"Z.P Primary School",phase:"2.2",org:"Scogo",issue:"5 x CPU \n1x Adapter",reported:"2026-02-13",solved:"2026-02-16",trackingId:"",ticket:"145250372",resolution:"Repaired",status:"Solved",contact:"",phone:"",description:"",remarks:"",attachments:""},
-  {id:"CMP-016",pod:"Life skills Foundation",phase:"2.2",org:"Scogo",issue:"1 x Monitor",reported:"2025-02-18",solved:"2025-02-18",trackingId:"",ticket:"145250375",resolution:"Repaired",status:"Solved",contact:"",phone:"",description:"",remarks:"",attachments:""},
-  {id:"CMP-017",pod:"LFP Tardeo",phase:"2.O",org:"Selligion",issue:"1 x CPU Praho",reported:"2026-02-16",solved:"2026-02-18",trackingId:"-",ticket:"-",resolution:"Replaced",status:"Solved",contact:"",phone:"",description:"",remarks:"",attachments:""},
-  {id:"CMP-018",pod:"Health Care Foundation",phase:"2.2",org:"Scogo",issue:"4 x CPUs Physical Condition issue\n6 x CPUs, OS not installed \n1 x Webcam not working",reported:"2026-02-19",solved:"",trackingId:"35187140203.0",ticket:"145250376",resolution:"Repaired",status:"In Progress",contact:"",phone:"",description:"",remarks:"",attachments:""},
-  {id:"CMP-019",pod:"MPS Balaram Street",phase:"2.2",org:"Scogo",issue:"5 X CPU",reported:"2026-02-21",solved:"2026-02-27",trackingId:"",ticket:"145250379",resolution:"Replaced",status:"Solved",contact:"",phone:"",description:"",remarks:"",attachments:""},
-  {id:"CMP-020",pod:"Vriksh Be The Change",phase:"2.2",org:"Scogo",issue:"1 x Keyboard\n1 x Monitor\n1 x Monitor",reported:"2026-02-22",solved:"",trackingId:"51715680450.0",ticket:"145250380",resolution:"",status:"In Progress",contact:"",phone:"",description:"",remarks:"",attachments:""},
-  {id:"CMP-021",pod:"AP office",phase:"Other",org:"Selligion",issue:"1 x PC (HP)\n1 x PC(Praho)",reported:"2026-02-23",solved:"2026-02-23",trackingId:"-",ticket:"-",resolution:"Repaired",status:"Solved",contact:"",phone:"",description:"",remarks:"",attachments:""},
-  {id:"CMP-022",pod:"NCT Learn from peers",phase:"2.O",org:"Selligion",issue:"10 x mouse (additional request)",reported:"2026-02-24",solved:"2026-02-25",trackingId:"-",ticket:"-",resolution:"Other",status:"Solved",contact:"",phone:"",description:"",remarks:"",attachments:""},
-  {id:"CMP-023",pod:"Apni Pathshala Office",phase:"Other",org:"Scogo",issue:"Issue 1: 1 x  Monitor\n\n- Issue 2: 1 x Adapter\n\n- Issue 3: 2 x wifi router",reported:"2026-02-25",solved:"",trackingId:"-",ticket:"",resolution:"",status:"In Progress",contact:"",phone:"",description:"",remarks:"",attachments:""},
-  {id:"CMP-024",pod:"GUPS Bajrang Colony",phase:"2.2",org:"Scogo",issue:"1 x Power Cable",reported:"2026-02-27",solved:"",trackingId:"",ticket:"145250386",resolution:"",status:"In Progress",contact:"",phone:"",description:"",remarks:"",attachments:""},
-];
+const INIT_COMPLAINTS = [];
 
-const INIT_REPOSSESSIONS = [
-  {id:"REPO-001",pod:"UDGI",address:"UDGI Pathshala Center, Kura Meerpur Post Chhajlet Teh Kanth Dist Moradabad Pin-code: 244501 UP",status:"Received",components:"10 x PC Sets.",pc_sets:10,cpus:0,monitors:0,laptops:0,mice:0,keyboards:0,webcams:0,headphones:0,thin_clients:0,printers:0,expectedDate:"2025-07-14",reshipDate:"2025-07-15",ticket:"T--SP-2278-00038",remarks:"UPDATED FROM SHEET - Test successful!",createdDate:"",contact:"",phone:"",serials:"",notes:""},
-  {id:"REPO-002",pod:"ZP Karjat",address:"Raigad zilla parishad upper primary school, zugrewadi at post-Borgaon, taluka-karjat Raigad Maharashtra - 410 101",status:"Received",components:"10 x PC Sets.",pc_sets:10,cpus:0,monitors:0,laptops:0,mice:0,keyboards:0,webcams:0,headphones:0,thin_clients:0,printers:0,expectedDate:"2025-05-03",reshipDate:"2025-05-20",ticket:"T--SP-2278-00037",remarks:"Packing of Components Done (26/04/2025)\n2 failed attempts.\nRepossession Complete. (20/05/2025)",createdDate:"",contact:"",phone:"",serials:"",notes:""},
-  {id:"REPO-003",pod:"Haryana Public School",address:"Samrath Computer Skill Training Center Kilaj. Near Z.P School Shivnery Nagar Kilaj",status:"Received",components:"10 x PC Sets.",pc_sets:10,cpus:0,monitors:0,laptops:0,mice:0,keyboards:0,webcams:0,headphones:0,thin_clients:0,printers:0,expectedDate:"2025-05-15",reshipDate:"2025-05-15",ticket:"T--SP-2278-00041",remarks:"Packing and Shipment will be executed (04/05/2025)\n2 failed attempts.\nPackage in Transit (15/05/2025)\nCompleted (22/05/2025)",createdDate:"",contact:"",phone:"",serials:"",notes:""},
-  {id:"REPO-004",pod:"SRIJAN EK SOACH",address:"Vill & P .O - Amrikhowa, Dist- Barpeta (Assam), PIN - 781307",status:"Received",components:"10 x PC Sets.",pc_sets:10,cpus:0,monitors:0,laptops:0,mice:0,keyboards:0,webcams:0,headphones:0,thin_clients:0,printers:0,expectedDate:"2025-08-10",reshipDate:"2025-08-21",ticket:"145250133",remarks:"Internal Ticket Genereated & Field Engineer Assigned for Pickup.(15/07/2025)\nWaiting for Quotation (18/07/2025)\nMaterial Packing Completed & now waiting for Shipment to proceed. (05/08/2025)",createdDate:"",contact:"",phone:"",serials:"",notes:""},
-  {id:"REPO-005",pod:"CSC Patel Nagar",address:"Prem Nagar Rd, Block B, Baljit Nagar, Patel Nagar, Delhi, 110008",status:"Received",components:"10 X PC Sets.",pc_sets:10,cpus:0,monitors:0,laptops:0,mice:0,keyboards:0,webcams:0,headphones:0,thin_clients:0,printers:0,expectedDate:"2025-08-25",reshipDate:"2025-08-26",ticket:"145250153",remarks:"POD has requested that the pickup be done after August 15th. (05/08/2025)\nMaterial Packaging Completed on (18/08/2025)\nReceived Package (26/08/2025)",createdDate:"",contact:"",phone:"",serials:"",notes:""},
-  {id:"REPO-006",pod:"BANDHUTVA FOUNDATION",address:"Bahujan Hitay Vidhyarthi  Vastigruh  Bhimnagar, Savangi meghe ,  Deoli road , Wardha, Maharashtra, 442001",status:"Received",components:"10 X PC Sets.",pc_sets:10,cpus:0,monitors:0,laptops:0,mice:0,keyboards:0,webcams:0,headphones:0,thin_clients:0,printers:0,expectedDate:"2025-08-28",reshipDate:"2025-09-01",ticket:"145250166",remarks:"Material Packaging & Shipment Completed by Engineer, Quotation Received and approved over email. (27/08/2025).\nMaterial Delivered to SCOGO. (01/09/2025)",createdDate:"",contact:"",phone:"",serials:"",notes:""},
-  {id:"REPO-007",pod:"Aspirant Education Sansthan",address:"Aspirant Education Sansthan, Bhupalsagar, Near Kapasan, District: Chittorgarh, Rajasthan, 312204",status:"In Process",components:"10 X PC Sets.",pc_sets:10,cpus:0,monitors:0,laptops:0,mice:0,keyboards:0,webcams:0,headphones:0,thin_clients:0,printers:0,expectedDate:"2025-10-07",reshipDate:"",ticket:"145250167\n145250213",remarks:"Location is T3, and it will take time to find an Engineer.\nPOC is not picking up Mayur's / Shailendra's calls. They have asked the Engineer to visit on 5th Sept. (30/08/2025)\nPODs POC is not answering SCOGO/ APs calls (13/09/2025)\nAp and the POD decided on a finalized date of 7th October. (01/10/2025).\nPOD and AP have decided on a date of 16/10/2025. (14/10/2025).\nPickup Failed, Chittiz Kumar is in the Hospital. (24/10/2025).\nShailendra will confirm the pickup date with Chittiz Kumar. (24/10/2025)\nAP paid for the Repossession, but POD failed to hand over the PCs. The Same Engineer will be assigned for a future Repossession, as he had purchased the packaging materials. (24/10/2025).",createdDate:"",contact:"",phone:"",serials:"",notes:""},
-  {id:"REPO-008",pod:"Inventurus Knowledge Solutions Ltd",address:"M/s. NSL Pvt. Ltd. (SEZ)Block-1,\n11th Floor, IDA Uppal,\nRangareddy District, HYDERABAD-500039\nTelangana INDIA",status:"Received",components:"213 x Monitor",pc_sets:0,cpus:0,monitors:213,laptops:0,mice:0,keyboards:0,webcams:0,headphones:0,thin_clients:0,printers:0,expectedDate:"TBA",reshipDate:"",ticket:"145250169",remarks:"All Component testing done , updated in sheet, waiting for paper work and scan\nReminder to lalesh on saturday for 3-10-2025 (30-10-2025)\n161 x Monitors",createdDate:"",contact:"",phone:"",serials:"",notes:""},
-  {id:"REPO-009",pod:"Inventurus Knowledge Solutions Ltd",address:"Inventurus Knowledge Solutions Ltd\nBuild. no.5, 2th Floor Unit no. 203/204,  Mindspace Business Park (SEZ),\nThane Belapur Road, Airoli, Navi Mumbai- 400708.",status:"Received",components:"44 x Laptops\n342 x Monitors\n1 x Printer\n8 x Thin Clients",pc_sets:0,cpus:0,monitors:342,laptops:44,mice:0,keyboards:0,webcams:0,headphones:0,thin_clients:8,printers:1,expectedDate:"TBA",reshipDate:"",ticket:"145250175",remarks:"All Component testing done , updated in sheet, waiting for paper work and scan\n\n24 x Laptops\n258 x Monitors",createdDate:"",contact:"",phone:"",serials:"",notes:""},
-  {id:"REPO-010",pod:"Prabha Shri Sainik High School",address:"Survey no. 151, Shri Gokul Samajik Sansthan Chawl, Rajewali Road, Bhidapadha Vasai east  Talukha Vasai.- 401208",status:"Received",components:"10 x Monitors\n08 x CPUs\n10 x Mouse\n08 x Keyboards",pc_sets:0,cpus:8,monitors:10,laptops:0,mice:0,keyboards:0,webcams:0,headphones:0,thin_clients:0,printers:0,expectedDate:"2026-01-01",reshipDate:"2026-01-09",ticket:"145250309",remarks:"engineer visited the site and pick the assets(9/1/2026)\nDelay in confirmation from Scogo as mayur on customer visit and Sarvesh on leave(14/01/2026)",createdDate:"",contact:"",phone:"",serials:"",notes:""},
-  {id:"REPO-011",pod:"Tech Veer Marol",address:"Marol Maroshi Police Training School,\n Marol Maroshi Rd, Mumbai, \nMaharashtra 400059",status:"Received",components:"10 x PCs Set",pc_sets:10,cpus:0,monitors:0,laptops:0,mice:0,keyboards:0,webcams:0,headphones:0,thin_clients:0,printers:0,expectedDate:"2026-01-03",reshipDate:"2026-01-19",ticket:"145250306",remarks:"on hold, for confirmation and documents(03/01/2026)\nWill proceed on 12/01/2026 (10/01/2026)\nPickup completed(19/01/2026)",createdDate:"",contact:"",phone:"",serials:"",notes:""},
-  {id:"REPO-012",pod:"Inventurus Knowledge Solutions Ltd",address:"M/s. NSL Pvt. Ltd. (SEZ)Block-1,\n11th Floor, IDA Uppal,\nRangareddy District, HYDERABAD-500039\nTelangana INDIA",status:"Informed",components:"268 x Monitor",pc_sets:0,cpus:0,monitors:268,laptops:0,mice:0,keyboards:0,webcams:0,headphones:0,thin_clients:0,printers:0,expectedDate:"2026-02-14",reshipDate:"",ticket:"145250373",remarks:"",createdDate:"",contact:"",phone:"",serials:"",notes:""},
-  {id:"REPO-013",pod:"Tech Veer Marol",address:"Marol Police Camp Customs Colony, \nMarol, Andheri East, Mumbai, \nMaharashtra 400059",status:"Received",components:"10 Monitors\n10 Keyboards\n10 Mice\n10 Webcams\n9 Headphones",pc_sets:0,cpus:0,monitors:10,laptops:0,mice:0,keyboards:0,webcams:0,headphones:0,thin_clients:0,printers:0,expectedDate:"2026-02-26",reshipDate:"2026-02-26",ticket:"145250382",remarks:"",createdDate:"",contact:"",phone:"",serials:"",notes:""},
-  {id:"REPO-014",pod:"Tech Veer Naigaon",address:"9, Parel Bhoiwada St, Police Colony, \nNaigaon, Mumbai,\n Maharashtra. 400014",status:"Received",components:"10 Monitors\n10 Keyboards\n10 Mice\n9 Webcams\n10 Headphones",pc_sets:0,cpus:0,monitors:10,laptops:0,mice:0,keyboards:0,webcams:0,headphones:0,thin_clients:0,printers:0,expectedDate:"2026-02-24",reshipDate:"2026-02-24",ticket:"145250381",remarks:"",createdDate:"",contact:"",phone:"",serials:"",notes:""},
-  {id:"REPO-015",pod:"MPS Natwer Parekh",address:"3W88+97Q, Natvar Parekh Compound, \nShivaji Nagar, Mumbai, \nMaharashtra 400043",status:"Informed",components:"",pc_sets:0,cpus:0,monitors:0,laptops:0,mice:0,keyboards:0,webcams:0,headphones:0,thin_clients:0,printers:0,expectedDate:"2026-02-28",reshipDate:"",ticket:"145250388",remarks:"",createdDate:"",contact:"",phone:"",serials:"",notes:""},
-];
+const INIT_REPOSSESSIONS = [];
 
-const INIT_REDEPLOYMENTS = [
-  {id:"REDEP-001",pod:"Uva Jagriti Sansthan",complaintTicket:"",address:"EcoLivelihoods & IT Foundation Address -  New Amar Plaza, Behind Police Station, Lal kothi, Kotputli, District - Kotputli-Behror,Rajasthan,303108",status:"Completed",components:"04x CPU\n\n01x Monitor",serials:"MJ05K32K\nPC017NNB\nS4CM2265\nS4CM7372\n\n6CM334310Z",source:"Karjat & Haryana Lot",orderDate:"2025-06-20",dispatchDate:"2025-06-25",trackingId:"51602358452",deliveryDate:"2025-06-30",contact:"",phone:""},
-  {id:"REDEP-002",pod:"Swami Vivekananda Medical Mission - SVMM Idukki",complaintTicket:"",address:"APJ Abdul Kalam Centre For Skill & Excellence, Vivekananda Road, Near New Private Bus Stand, Kattappana, Idukki district, Kerala, 685508",status:"Completed",components:"03x CPU \n\n01x Monitor",serials:"622AD69PV72\n622A55V2W72\n7GI0O666204\n\n2311039975",source:"Karjat & Haryana Lot",orderDate:"2025-06-21",dispatchDate:"2025-06-25",trackingId:"51602358463",deliveryDate:"2025-07-21",contact:"",phone:""},
-  {id:"REDEP-003",pod:"ATMA Foundation",complaintTicket:"",address:"ATMA Foundation, Surya Gardens, Paliyam Road, Thrissur Kerala 680001 India",status:"Completed",components:"01x CPU \n\n01x DVI to VGA",serials:"630A1FWY5J2",source:"Karjat & Haryana Lot",orderDate:"2025-07-16",dispatchDate:"2025-07-17",trackingId:"34482871684",deliveryDate:"2025-07-22",contact:"",phone:""},
-  {id:"REDEP-004",pod:"Yusuf Meherally Centre (YMC)",complaintTicket:"",address:"Vallabh Vidhyalaya Mundra, Near Hotel Fern, Adani Port Road, Zero Point, Mundra, Kutch, Gujarat 370405",status:"Completed",components:"06 x CPU Dell With Power Adapters.\n\n06 x DVI to VGA Converters.\n\n06 x VGA Cables.",serials:"623AJTZB6J2\n630A5RRT7K2\n621A795JCF2\n622AGG1JV72\n620ADT7P5J2",source:"Karjat, Haryana & UDGI Lot",orderDate:"2025-08-14",dispatchDate:"2025-08-26",trackingId:"51637781635\n34482867764",deliveryDate:"2025-08-30",contact:"",phone:""},
-  {id:"REDEP-005",pod:"ZP Devrukh no.1",complaintTicket:"",address:"Zeeilla Parishad Kendrashada, Devrukh No.1 Taluka Sangameshwar, District Ratnagiri, Maharashtra, 415804",status:"Completed",components:"03 x CPU Dell with Power Adapters\n\n07 x Monitors with Power & VGA Cables.\n\n03 x Headphones.",serials:"622ADPCXV72\n622A1DMHV72\n622AFJN5W72\n\n2311038205\n2311039971\n2311038204\n2311038202\n2408000264\n2311038203\nCE00090823MON001200020",source:"Karjat, Haryana & UDGI Lot",orderDate:"2025-08-20",dispatchDate:"2025-08-26",trackingId:"51637781624",deliveryDate:"2025-05-09",contact:"",phone:""},
-  {id:"REDEP-006",pod:"Gramin Shiksha Kendra Samiti",complaintTicket:"",address:"Gramin Shiksha Kendra Samiti, H1 Rajnagar colony, Sawai Madhopur, Rajasthan, 322001.",status:"Completed",components:"01x Monitor with VGA Cable\n\n03x Keyboard. \n\n03x Mouse.\n\n03x Headphones",serials:"2408004813\n\nNo Serial Number\nNo Serial Number\nNo Serial Number",source:"UDGI Lot",orderDate:"2025-09-11",dispatchDate:"2025-09-13",trackingId:"51637781963",deliveryDate:"2025-09-22",contact:"",phone:""},
-  {id:"REDEP-007",pod:"LFP Tardeo - Teach to Earn (Durgesh)",complaintTicket:"",address:"Ashish Building, 5th Floor, Tardeo End of Bombay C Bridge, Tardeo, Mumbai, Maharashtra 400034",status:"Completed",components:"01 x Monitor with Power cable \n\n01 x VGA CABLE",serials:"No Serial",source:"N/A",orderDate:"2025-10-07",dispatchDate:"2025-10-09",trackingId:"Wefast",deliveryDate:"2025-09-10",contact:"",phone:""},
-  {id:"REDEP-008",pod:"Digital Saathi Foundation",complaintTicket:"145250195",address:"Bus Stand, Kone,  Sonbhadra UP-231226",status:"Completed",components:"5 x CPU Dell",serials:"623A3CVY6J2\n74UDO900014\n623A13716J2\n630AD1QYBF2\n7HA0O666292 - repaired",source:"-",orderDate:"2025-10-31",dispatchDate:"2025-11-10",trackingId:"34482865841\n\n26697510004782\nDelhivery AWB",deliveryDate:"2025-12-13",contact:"",phone:""},
-  {id:"REDEP-009",pod:"Inspire Learning Centre",complaintTicket:"145250234",address:"Inspire Learning Centre, 155/9, Ground Floor, Opposite Sunder Mega Mart,Kishangarh, Near Ambiance Tower Car Market, Vasant Kunj, New Delhi-110070",status:"Completed",components:"2 x Monitors \n\n4 x Keyboards\n\n5 x Mouse\n\n4 x Headphones",serials:"CE00090823MON001200860\nCE00090823MON001201159",source:"Karjat & Haryana Lot",orderDate:"2025-10-31",dispatchDate:"2025-11-06",trackingId:"51637782210",deliveryDate:"2025-12-11",contact:"",phone:""},
-  {id:"REDEP-010",pod:"Apni Pathshala Office",complaintTicket:"N/A",address:"C-Wing, 2nd Floor, NARAYAN CHANDRA TRUST, Moregoan Talav, Manvelpada Road, Nalasopara East, Maharashtra 401209",status:"Completed",components:"2 x Laptop",serials:"PC1768YH\nPC1768Y2",source:"IKS Mumbai",orderDate:"2025-11-12",dispatchDate:"2025-11-12",trackingId:"We fast",deliveryDate:"2025-11-12",contact:"",phone:""},
-  {id:"REDEP-011",pod:"Pyar ki Dor Foundation",complaintTicket:"145250224",address:"Amaar Lab, Deogaon, Rajpur, Brajrajnagar, Jharsuguda, Odisha, Pin-code: 768216",status:"Completed",components:"4 x Monitors\n\n1 x Keyboard\n\n1 x Mouse\n\n2 x Adapters {lenovo pc}",serials:"60B8AAR6NPV9026MKG\n60B8AAR6NPV9008VBV\n60B8AAR6NPV9026P0A\n60B8AAR6NPV9026NZZ",source:"Bandhutva Foundation",orderDate:"2025-12-03",dispatchDate:"2025-12-06",trackingId:"51637782405",deliveryDate:"2025-12-12",contact:"",phone:""},
-  {id:"REDEP-012",pod:"Makerbox Foundation",complaintTicket:"145250260",address:"J-129 2nd Floor Saurabh Vihar, Jaitpur Badarpur New Delhi 110044",status:"Completed",components:"2 x CPU\n\n2 x Keyboard\n\n4 x Mouse",serials:"PRAHO2-0823-0000923\nPRAHO2-0823-0000956",source:"N/A",orderDate:"2025-12-03",dispatchDate:"2025-12-08",trackingId:"34482864301",deliveryDate:"2025-12-09",contact:"",phone:""},
-  {id:"REDEP-013",pod:"Prabha Shri Sainik High School",complaintTicket:"N/A",address:"Survey no. 151, Shri Gokul Samajik Sansthan Chawl, Rajewali Road, Bhidapadha Vasai east  Talukha Vasai.- 401208",status:"Completed",components:"5 x CPUs\n\n5 x Monitors\n\n5 x Mouse\n\n5 x Keyboards",serials:"-",source:"IKS Mumbai",orderDate:"2025-12-09",dispatchDate:"2025-12-13",trackingId:"Borzo\nhttps://borzodelivery.com/in/track/PGDLPY16LXZHIN",deliveryDate:"2025-12-13",contact:"",phone:""},
-  {id:"REDEP-014",pod:"LIFI Kirari POD",complaintTicket:"145250258",address:"Plot no 16 block A, Prem Nagar suleman Nagar Kirari new Delhi 110086, Near dukhi ram samose vala.",status:"Completed",components:"4 x Monitors\n\n4 x Keyboards\n\n7 x Mouse\n\n1 x Dell Adapter",serials:"CE00090823MON001201158\nCE00090823MON001200016\nCE00090823MON001200018\nCE00090823MON001201157",source:"Karjat & Haryana Lot",orderDate:"2025-12-18",dispatchDate:"2025-12-19",trackingId:"51637782464",deliveryDate:"2025-12-23",contact:"",phone:""},
-  {id:"REDEP-015",pod:"Apni Pathshala Office",complaintTicket:"N/A",address:"C-Wing, 2nd Floor, NARAYAN CHANDRA TRUST, Moregoan Talav, Manvelpada Road, Nalasopara East, Maharashtra 401209",status:"Completed",components:"8 x Laptop",serials:"R90VRK9Q, R90VRK9Z\nR90P7Y7A, MP1C8ZGD\nMP1C9152, PC1768X5\nMP1C8XZG, PC175YP8",source:"IKS Mumbai",orderDate:"2025-12-19",dispatchDate:"2025-12-27",trackingId:"https://borzodelivery.com/in/track/PG54H1RMGT66IN",deliveryDate:"2025-12-27",contact:"",phone:""},
-  {id:"REDEP-016",pod:"Apni Pathshala Office",complaintTicket:"N/A",address:"C-Wing, 2nd Floor, NARAYAN CHANDRA TRUST, Moregoan Talav, Manvelpada Road, Nalasopara East, Maharashtra 401209",status:"Completed",components:"2 x Monitors\n\n2 x VGA & Power Cables\n\n2 x VGA Connector",serials:"",source:"IKS Mumbai",orderDate:"2025-12-20",dispatchDate:"2025-12-26",trackingId:"https://borzodelivery.com/in/track/PGARX95RXCHYIN",deliveryDate:"2025-12-26",contact:"",phone:""},
-  {id:"REDEP-017",pod:"ZP Mendgaon",complaintTicket:"145250302",address:"Jilha Parishad Marathi Prathamik shala, mendgaon Ta. Deulgaonraja Dist.Buldhana 443204",status:"Completed",components:"3 x Monitors",serials:"CN0779TPFCC0078QCAHIA01\nCN0DFDMY72872647AYHUA00\nCN0779TPFCC00789C14IA01",source:"IKS Mumbai",orderDate:"2026-01-06",dispatchDate:"2026-01-10",trackingId:"51637782652",deliveryDate:"2026-01-16",contact:"",phone:""},
-  {id:"REDEP-018",pod:"LFP Tardeo",complaintTicket:"N/A",address:"Ashish Building, 5th Floor, Tardeo End of Bombay C Bridge,\n Tardeo, Mumbai, Maharashtra 400034",status:"Completed",components:"10 x Monitors",serials:"CN0779TPFCC0078PDDEIA01\nCN0DFDMY7287263BA5FUA00\nCN0779TPFCC0078PAP4IA01\nCN0DFDMY72872647AYCUA00\nCN0DFDMY7287263BCA8UA00\nCN0779TPFCC0078PAE4IA01\nCN0DFDMY7287263BCDDUA00\nCN0779TPFCC0078PAD0IA01\nCN0DFDMY72872647AL4UA00\nCN0DFDMY7287263BA6MUA00",source:"IKS Mumbai",orderDate:"2026-01-12",dispatchDate:"2026-01-23",trackingId:"Porter",deliveryDate:"2026-01-24",contact:"",phone:""},
-  {id:"REDEP-019",pod:"Uva Jagriti Sansthan 1",complaintTicket:"145250267",address:"C/O GOKUL CHAND SAINI, INFRONT OF PANCHAYAT, \nSAMITI, BANSUR, Alwar, Rajasthan, 301402",status:"Completed",components:"5 x CPU's",serials:"S4CP7189\nS4EZ3999\nS4GQ6293\nPC0Q3K1Z\nPC156KGD",source:"BANDHUTVA FOUNDATION",orderDate:"2026-01-12",dispatchDate:"2026-01-24",trackingId:"58927266834\n\n17980177482",deliveryDate:"2026-02-16",contact:"",phone:""},
-  {id:"REDEP-020",pod:"Apni Pathshala Office",complaintTicket:"N/A",address:"C-Wing, 2nd Floor, NARAYAN CHANDRA TRUST, Moregoan Talav, Manvelpada Road, Nalasopara East, Maharashtra 401209",status:"Completed",components:"14x Laptop",serials:"",source:"IKS Mumbai",orderDate:"2026-01-20",dispatchDate:"2026-01-29",trackingId:"We Fast",deliveryDate:"2026-01-29",contact:"",phone:""},
-  {id:"REDEP-021",pod:"Digital Saathi Foundation",complaintTicket:"145250195",address:"Bus Stand, Kone,  Sonbhadra UP-231226",status:"Completed",components:"4 x CPU's",serials:"PG01ZR6N\nMJ075DXQ\nS4GN0536\nMJ07EK2V",source:"BANDHUTVA FOUNDATION",orderDate:"2026-01-22",dispatchDate:"2026-01-24",trackingId:"51637782836",deliveryDate:"2026-02-06",contact:"",phone:""},
-  {id:"REDEP-022",pod:"Christian Grammar School",complaintTicket:"145250210",address:"Christian Grammar School, Thingkham Square, Tamenglong District, Manipur\n  PIN - 795141",status:"Completed",components:"3 x CPU",serials:"MJ05TXQV\nPC17V6NG\nS4FT3411",source:"SRI JAN EK SOACH",orderDate:"2026-01-22",dispatchDate:"2026-01-24",trackingId:"Delhivery\n46455610050805",deliveryDate:"2026-02-02",contact:"",phone:""},
-  {id:"REDEP-023",pod:"WTL Foundation",complaintTicket:"145250362",address:"H7/17, Gate no 2, Phase 6, Ayanagar, Delhi - 110047",status:"Completed",components:"1 x Adapter",serials:"-",source:"-",orderDate:"2026-02-14",dispatchDate:"2026-02-14",trackingId:"35187140612",deliveryDate:"2026-02-16",contact:"",phone:""},
-  {id:"REDEP-024",pod:"NCT LFP",complaintTicket:"N/A",address:"C-Wing, 2nd Floor, NARAYAN CHANDRA TRUST, Moregoan Talav, Manvelpada Road, Nalasopara East, Maharashtra 401209",status:"Completed",components:"30 x Monitors",serials:"",source:"IKS Mumbai",orderDate:"2026-02-23",dispatchDate:"",trackingId:"we Fast",deliveryDate:"2026-02-24",contact:"",phone:""},
-];
+const INIT_REDEPLOYMENTS = [];
 const TMPL = {
   shipment: {
     subject: "Shipment Order – {{pod_name}}",
@@ -3107,6 +3027,145 @@ export default function App() {
   const [complaints, setComplaints] = useState(INIT_COMPLAINTS);
   const [repos,      setRepos]      = useState(INIT_REPOSSESSIONS);
   const [redeps,     setRedeps]     = useState(INIT_REDEPLOYMENTS);
+
+  useEffect(() => {
+    const mapShipmentStatus = (s) => ({
+      PENDING: "Pending",
+      ORDER_SENT: "Order Placed",
+      DISPATCHED: "Dispatched",
+      IN_TRANSIT: "In Transit",
+      DELIVERED: "Delivered",
+      COMPLETED: "Completed",
+    }[s] || s || "Pending");
+
+    const mapComplaintStatus = (s) => ({
+      OPEN: "Open",
+      IN_PROGRESS: "In Progress",
+      SOLVED: "Solved",
+      DELETED: "Deleted",
+    }[s] || s || "In Progress");
+
+    const mapRepoStatus = (s) => ({
+      PENDING: "Pending",
+      INFORMED: "Informed",
+      COLLECTED: "Collected",
+      IN_PROGRESS: "In Process",
+      COMPLETED: "Completed",
+      RECEIVED: "Received",
+    }[s] || s || "Pending");
+
+    const mapRedepStatus = (s) => ({
+      PENDING: "Pending",
+      ORDER_SENT: "Order Sent",
+      IN_TRANSIT: "In Transit",
+      DELIVERED: "Delivered",
+      COMPLETED: "Completed",
+    }[s] || s || "Pending");
+
+    const fmtDate = (d) => (d ? String(d).slice(0, 10) : "");
+
+    const load = async () => {
+      try {
+        const [sRes, cRes, rRes, dRes] = await Promise.all([
+          fetch('/api/shipments'),
+          fetch('/api/complaints'),
+          fetch('/api/repossessions'),
+          fetch('/api/redeployments'),
+        ]);
+
+        if (sRes.ok) {
+          const js = await sRes.json();
+          setShipments((js.shipments || []).map((x) => ({
+            id: x.refId || x.id,
+            pod: x.podName,
+            address: x.shippingAddress,
+            status: mapShipmentStatus(x.status),
+            contact: x.contactPerson,
+            phone: x.mobileNumber,
+            cpus: x.cpus || 0,
+            components: x.components || '',
+            state: x.state || '',
+            purpose: x.purpose || 'Other',
+            orderDate: fmtDate(x.orderDate),
+            dispatchDate: fmtDate(x.dispatchDate),
+            deliveryDate: fmtDate(x.deliveryDate),
+            remarks: x.notes || '',
+            qcReport: x.qcReport || '',
+            trackingId: x.trackingId || '',
+            serials: x.serials || '',
+            signedQc: x.signedQc || '',
+          })));
+        }
+
+        if (cRes.ok) {
+          const jc = await cRes.json();
+          setComplaints((jc.complaints || []).map((x) => ({
+            id: x.refId || x.id,
+            pod: x.podName,
+            phase: x.phase || '',
+            org: x.org || '',
+            issue: x.issue || '',
+            reported: fmtDate(x.reportedDate || x.createdAt),
+            solved: fmtDate(x.solvedDate),
+            trackingId: x.trackingId || '',
+            ticket: x.ticket || '',
+            resolution: x.resolution || '',
+            status: mapComplaintStatus(x.status),
+            contact: x.contactPerson || '',
+            phone: x.mobileNumber || '',
+            description: x.description || '',
+            remarks: x.remarks || '',
+            attachments: x.attachments || '',
+            deviceSerial: x.deviceSerial || '',
+            device: x.deviceType || '',
+          })));
+        }
+
+        if (rRes.ok) {
+          const jr = await rRes.json();
+          setRepos((jr.repossessions || []).map((x) => ({
+            id: x.refId || x.id,
+            pod: x.podName,
+            address: x.shippingAddress || '',
+            status: mapRepoStatus(x.status),
+            components: x.components || '',
+            expectedDate: fmtDate(x.expectedDate),
+            reshipDate: fmtDate(x.reshippedDate),
+            ticket: x.ticket || '',
+            remarks: x.notes || '',
+            contact: x.contactPerson || '',
+            phone: x.mobileNumber || '',
+            serials: x.serials || '',
+            notes: x.notes || '',
+          })));
+        }
+
+        if (dRes.ok) {
+          const jd = await dRes.json();
+          setRedeps((jd.redeployments || []).map((x) => ({
+            id: x.refId || x.id,
+            pod: x.podName,
+            complaintTicket: x.complaintTicket || '',
+            address: x.shippingAddress || '',
+            status: mapRedepStatus(x.status),
+            components: x.components || '',
+            serials: x.serials || '',
+            source: x.sourcePod || '',
+            orderDate: fmtDate(x.orderDate),
+            dispatchDate: fmtDate(x.dispatchDate),
+            trackingId: x.trackingId || '',
+            deliveryDate: fmtDate(x.deliveryDate),
+            contact: x.contactPerson || '',
+            phone: x.mobileNumber || '',
+          })));
+        }
+      } catch (e) {
+        console.error('Dashboard data load failed', e);
+      }
+    };
+
+    load();
+  }, []);
 
   const renderPage = () => {
     const p = { shipments, setShipments, complaints, setComplaints, repos, setRepos, redeps, setRedeps };
