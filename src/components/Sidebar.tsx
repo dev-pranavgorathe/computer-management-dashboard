@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { signOut, useSession } from 'next-auth/react'
 import { 
   LayoutDashboard, 
   Truck, 
@@ -13,7 +14,8 @@ import {
   Menu,
   X,
   Shield,
-  CheckSquare
+  CheckSquare,
+  LogOut
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -31,7 +33,16 @@ const navItems = [
 
 export default function Sidebar() {
   const pathname = usePathname()
+  const { data: session } = useSession()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const role = session?.user?.role || 'USER'
+
+  const visibleNavItems = navItems.filter(item => {
+    if ((item.href === '/approvals' || item.href === '/audit-logs') && !(role === 'ADMIN' || role === 'MANAGER')) {
+      return false
+    }
+    return true
+  })
 
   return (
     <>
@@ -59,9 +70,9 @@ export default function Sidebar() {
 
           {/* Navigation */}
           <nav className="flex-1 p-4 space-y-1">
-            {navItems.map((item) => {
+            {visibleNavItems.map((item) => {
               const Icon = item.icon
-              const isActive = pathname === item.href
+              const isActive = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href)
               return (
                 <Link
                   key={item.name}
@@ -83,10 +94,19 @@ export default function Sidebar() {
           </nav>
 
           {/* Footer */}
-          <div className="p-4 border-t border-gray-200">
-            <p className="text-xs text-gray-400 text-center">
-              © 2024 Apni Pathshala
-            </p>
+          <div className="p-4 border-t border-gray-200 space-y-3">
+            <div className="rounded-lg bg-gray-50 px-3 py-2">
+              <p className="text-xs font-semibold text-gray-700 truncate">{session?.user?.name || 'User'}</p>
+              <p className="text-[11px] text-gray-500 truncate">{session?.user?.email || '-'}</p>
+              <p className="mt-1 text-[10px] text-primary-700 font-medium">Role: {role}</p>
+            </div>
+            <button
+              onClick={() => signOut({ callbackUrl: '/auth/signin' })}
+              className="w-full flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+            >
+              <LogOut size={16} /> Logout
+            </button>
+            <p className="text-xs text-gray-400 text-center">© {new Date().getFullYear()} Apni Pathshala</p>
           </div>
         </div>
       </aside>

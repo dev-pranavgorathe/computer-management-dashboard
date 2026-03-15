@@ -11,6 +11,7 @@ function SignInForm() {
   const searchParams = useSearchParams()
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   const registered = searchParams.get("registered")
   const verified = searchParams.get("verified")
@@ -26,8 +27,6 @@ function SignInForm() {
     const email = formData.get("email") as string
     const password = formData.get("password") as string
 
-    console.log("Sign in attempt:", { email })
-
     try {
       const result = await signIn("credentials", {
         email,
@@ -35,22 +34,17 @@ function SignInForm() {
         redirect: false,
       })
 
-      console.log("Sign in result:", result)
-
       if (result?.error) {
-        console.error("Sign in error:", result.error)
         setError("Invalid email or password")
         setLoading(false)
         return
       }
 
       // Success - redirect to dashboard
-      console.log("Sign in successful, redirecting...")
       setLoading(false)
       router.push("/")
       router.refresh()
-    } catch (err) {
-      console.error("Sign in exception:", err)
+    } catch {
       setError("Something went wrong. Please try again.")
       setLoading(false)
     }
@@ -109,11 +103,20 @@ function SignInForm() {
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-              Password
-            </label>
+            <div className="mb-1 flex items-center justify-between">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                Password
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowPassword(v => !v)}
+                className="text-xs text-blue-600 hover:text-blue-700"
+              >
+                {showPassword ? 'Hide' : 'Show'}
+              </button>
+            </div>
             <input
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               name="password"
               id="password"
               required

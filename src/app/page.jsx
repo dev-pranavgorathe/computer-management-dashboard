@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import { signOut, useSession } from "next-auth/react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, AreaChart, Area, LineChart, Line, PieChart, Pie, Cell } from "recharts";
 
 /* ─── STYLES ─────────────────────────────────────────────────────────────────── */
@@ -3139,6 +3140,7 @@ const NAV = [
 
 /* ─── APP ────────────────────────────────────────────────────────────────────── */
 export default function App() {
+  const { data: session }           = useSession();
   const [mounted, setMounted]       = useState(false);
   const [page, setPage]             = useState("overview");
   const [shipments,  setShipments]  = useState(INIT_SHIPMENTS);
@@ -3339,11 +3341,15 @@ export default function App() {
               );
             })}
           </nav>
-          <div style={{ padding:"10px 12px 16px", borderTop:"1px solid rgba(255,255,255,0.07)" }}>
+          <div style={{ padding:"10px 12px 16px", borderTop:"1px solid rgba(255,255,255,0.07)", display:"grid", gap:8 }}>
             <div style={{ display:"flex", alignItems:"center", gap:9, padding:"8px 6px", borderRadius:7, background:"rgba(255,255,255,0.04)" }}>
-              <div style={{ width:28, height:28, borderRadius:"50%", background:"linear-gradient(135deg,#1d4ed8,#3b82f6)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:700, color:"#fff", flexShrink:0 }}>AD</div>
-              <div><div style={{ fontSize:12, fontWeight:600, color:"#fff" }}>Admin</div><div style={{ fontSize:10, color:"rgba(255,255,255,0.3)" }}>cmd@portal.com</div></div>
+              <div style={{ width:28, height:28, borderRadius:"50%", background:"linear-gradient(135deg,#1d4ed8,#3b82f6)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:700, color:"#fff", flexShrink:0 }}>{(session?.user?.name || "U").slice(0,2).toUpperCase()}</div>
+              <div>
+                <div style={{ fontSize:12, fontWeight:600, color:"#fff" }}>{session?.user?.name || "User"}</div>
+                <div style={{ fontSize:10, color:"rgba(255,255,255,0.3)" }}>{session?.user?.email || "-"}</div>
+              </div>
             </div>
+            <button onClick={()=>signOut({ callbackUrl:"/auth/signin" })} style={{ width:"100%", border:"1px solid rgba(255,255,255,0.15)", background:"transparent", color:"rgba(255,255,255,0.8)", borderRadius:7, padding:"7px 10px", fontSize:12, cursor:"pointer" }}>Logout</button>
           </div>
         </aside>
 
@@ -3358,9 +3364,10 @@ export default function App() {
               <span style={{ fontSize:12, color:T.textMid, fontWeight:400 }}>{new Date().toLocaleDateString("en-GB",{ weekday:"short", day:"2-digit", month:"short", year:"numeric" })}</span>
               <div style={{ width:1, height:16, background:T.border }}/>
               <div style={{ display:"flex", alignItems:"center", gap:7 }}>
-                <div style={{ width:28, height:28, borderRadius:"50%", background:"linear-gradient(135deg,#1d4ed8,#3b82f6)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"#fff" }}>AD</div>
-                <span style={{ fontSize:13, fontWeight:500, color:T.text }}>Admin</span>
+                <div style={{ width:28, height:28, borderRadius:"50%", background:"linear-gradient(135deg,#1d4ed8,#3b82f6)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"#fff" }}>{(session?.user?.name || "U").slice(0,2).toUpperCase()}</div>
+                <span style={{ fontSize:13, fontWeight:500, color:T.text }}>{session?.user?.name || "User"}</span>
               </div>
+              <button onClick={()=>signOut({ callbackUrl:"/auth/signin" })} style={{ border:`1px solid ${T.border}`, background:"#fff", borderRadius:6, padding:"6px 10px", fontSize:12, color:T.textMid, cursor:"pointer" }}>Logout</button>
             </div>
           </header>
           <main style={{ flex:1, overflowY:"auto", padding:24 }}>
