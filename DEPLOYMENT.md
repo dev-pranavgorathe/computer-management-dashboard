@@ -55,8 +55,8 @@ In the Vercel deployment setup, add these environment variables:
 
 | Variable | Value | Notes |
 |----------|-------|-------|
-| `DATABASE_URL` | `postgresql://postgres.xxxxx:password@aws-0-region.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1` | Supabase connection string (pooled) |
-| `DIRECT_DATABASE_URL` | `postgresql://postgres.xxxxx:password@aws-0-region.pooler.supabase.com:5432/postgres` | Direct connection for migrations |
+| `POSTGRES_PRISMA_URL` | `postgresql://postgres.xxxxx:password@aws-0-region.pooler.supabase.com:6543/postgres?sslmode=require&pgbouncer=true` | Supabase pooled connection (runtime) |
+| `POSTGRES_URL_NON_POOLING` | `postgresql://postgres.xxxxx:password@db.xxxxx.supabase.co:5432/postgres?sslmode=require` | Supabase direct connection (migrations) |
 | `NEXTAUTH_URL` | `https://your-app-name.vercel.app` | Your Vercel app URL |
 | `NEXTAUTH_SECRET` | Generate with: `openssl rand -base64 32` | Random 32-character secret |
 | `RESEND_API_KEY` | Your Resend API key | Optional - for emails |
@@ -85,9 +85,9 @@ After the first deployment, you need to create the database tables:
 **OR** run locally:
 
 ```bash
-# Set your production DATABASE_URL locally temporarily
-export DATABASE_URL="your-production-database-url"
-export DIRECT_DATABASE_URL="your-direct-database-url"
+# Set your production Supabase Prisma vars locally temporarily
+export POSTGRES_PRISMA_URL="your-production-pooled-url"
+export POSTGRES_URL_NON_POOLING="your-production-direct-url"
 
 # Push schema to production database
 npx prisma db push
@@ -140,8 +140,8 @@ WHERE email = 'your-email@example.com';
 
 Before going live, ensure you have:
 
-- ✅ `DATABASE_URL` (Supabase pooled connection)
-- ✅ `DIRECT_DATABASE_URL` (Supabase direct connection)
+- ✅ `POSTGRES_PRISMA_URL` (Supabase pooled connection)
+- ✅ `POSTGRES_URL_NON_POOLING` (Supabase direct connection)
 - ✅ `NEXTAUTH_URL` (Your Vercel app URL)
 - ✅ `NEXTAUTH_SECRET` (Random 32-char secret)
 - ⬜ `RESEND_API_KEY` (Optional - for emails)
@@ -155,7 +155,7 @@ Before going live, ensure you have:
 ### Database Connection Issues
 
 If you see database connection errors:
-1. Verify `DATABASE_URL` and `DIRECT_DATABASE_URL` are correct
+1. Verify `POSTGRES_PRISMA_URL` and `POSTGRES_URL_NON_POOLING` are correct
 2. Check Supabase project is not paused (free tier pauses after 7 days)
 3. Ensure IP restrictions in Supabase allow all connections
 

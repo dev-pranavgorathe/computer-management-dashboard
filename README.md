@@ -86,21 +86,26 @@ npm start
 
 ## ⚙️ Environment Variables
 
-Create a `.env.local` file:
+Create a `.env.local` file (single database setup: **Supabase Postgres via Prisma**):
 
 ```env
-# NextAuth Configuration
+# NextAuth
 NEXTAUTH_URL=http://localhost:3000
 NEXTAUTH_SECRET=<your-random-secret-key>
 
-# GitHub OAuth (create at https://github.com/settings/developers)
+# Prisma datasource vars (used by prisma/schema.prisma)
+POSTGRES_PRISMA_URL=<supabase-pooler-connection-string>
+POSTGRES_URL_NON_POOLING=<supabase-direct-connection-string>
+
+# Optional OAuth
 GITHUB_ID=<your-github-client-id>
 GITHUB_SECRET=<your-github-client-secret>
-
-# Google Sheets API (optional, for real data)
-GOOGLE_SHEETS_SPREADSHEET_ID=<your-sheet-id>
-GOOGLE_SHEETS_CREDENTIALS=<base64-encoded-credentials>
 ```
+
+### Important
+- This project uses **one database only**: Supabase Postgres.
+- Do **not** use mixed DB URLs (like Accelerate/SQLite/other providers) in local setup.
+- Prisma Client reads connection details from `prisma/schema.prisma` env vars above.
 
 ## 🚀 Deployment to Vercel
 

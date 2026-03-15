@@ -1,54 +1,31 @@
+# ✅ Single Database Setup (Supabase only)
 
-# 🚀 Create Database in 30 Seconds
+This project should use **one database provider only: Supabase Postgres**.
 
-## Just Click This Link:
+## Localhost Setup
 
-👉 **https://vercel.com/dev-pranavgorathes-projects/computer-management-dashboard/settings/storage**
+1. Create/open `.env.local`
+2. Add only these Prisma DB vars:
 
----
+```env
+POSTGRES_PRISMA_URL="postgres://<user>:<password>@<pooler-host>:6543/postgres?sslmode=require&pgbouncer=true"
+POSTGRES_URL_NON_POOLING="postgres://<user>:<password>@<direct-host>:5432/postgres?sslmode=require"
+```
 
-## Then:
+3. Sync schema:
 
-1. **Click:** "Create Database" (big button)
-2. **Select:** "Neon" (first option - Serverless Postgres)
-3. **Click:** "Continue" → "Create"
+```bash
+npx prisma db push
+```
 
-**That's it! 30 seconds.**
+4. (Optional) seed demo users:
 
----
+```bash
+npm run seed:demo
+```
 
-## What Happens Automatically:
+## Important
 
-- ✅ Neon creates PostgreSQL database
-- ✅ `DATABASE_URL` added to Vercel environment
-- ✅ Everything configured for you
-- ✅ Ready to use immediately
-
----
-
-## After You Create:
-
-**Just reply:** "Created" or "Done"
-
-I'll then:
-1. ✅ Pull the DATABASE_URL
-2. ✅ Update your local code
-3. ✅ Push schema to database
-4. ✅ Test the connection
-5. ✅ Deploy to Vercel
-
----
-
-## 🎯 Quick Summary:
-
-**Just 3 clicks:**
-1. Open the link above
-2. Click "Neon"
-3. Click "Create"
-
-**Then tell me "Done"** and I'll handle everything else! 🚀
-
----
-
-**Open this URL now:**
-👉 https://vercel.com/dev-pranavgorathes-projects/computer-management-dashboard/settings/storage
+- Do **not** mix Neon / SQLite / Prisma Accelerate URLs for local setup.
+- Keep DB provider consistent: **Supabase Postgres**.
+- Prisma reads from `prisma/schema.prisma` datasource env vars above.
