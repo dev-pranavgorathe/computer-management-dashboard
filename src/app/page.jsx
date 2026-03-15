@@ -1536,46 +1536,163 @@ const Shipments = ({ shipments, setShipments }) => {
 
   const showToast = msg => { setToast(msg); setTimeout(()=>setToast(null), 3200); };
 
-  const handleAddEntry = () => {
+  const uiToApiStatus = (s) => ({
+    "Pending": "PENDING",
+    "Order Placed": "ORDER_SENT",
+    "Dispatched": "DISPATCHED",
+    "In Transit": "IN_TRANSIT",
+    "Delivered": "DELIVERED",
+    "Completed": "COMPLETED",
+  }[s] || "PENDING");
+
+  const apiToUiStatus = (s) => ({
+    PENDING: "Pending",
+    ORDER_SENT: "Order Placed",
+    DISPATCHED: "Dispatched",
+    IN_TRANSIT: "In Transit",
+    DELIVERED: "Delivered",
+    COMPLETED: "Completed",
+  }[s] || s || "Pending");
+
+  const toUiShipment = (x) => ({
+    id: x.refId || x.id,
+    dbId: x.id,
+    pod: x.podName,
+    address: x.shippingAddress,
+    status: apiToUiStatus(x.status),
+    contact: x.contactPerson,
+    phone: x.mobileNumber,
+    cpus: x.cpus || 0,
+    components: x.components || "",
+    state: x.state || "",
+    purpose: x.purpose || "Other",
+    orderDate: x.orderDate ? String(x.orderDate).slice(0, 10) : "",
+    dispatchDate: x.dispatchDate ? String(x.dispatchDate).slice(0, 10) : "",
+    deliveryDate: x.deliveryDate ? String(x.deliveryDate).slice(0, 10) : "",
+    remarks: x.notes || "",
+    qcReport: x.qcReport || "",
+    trackingId: x.trackingId || "",
+    serials: x.serials || "",
+    signedQc: x.signedQc || "",
+  });
+
+  const handleAddEntry = async () => {
     if (!form.pod || !form.contact) return alert("POD Name and Contact Person are required.");
-    const entry = {
-      id: "SHP-" + String(shipments.length+1).padStart(3,"0"),
-      pod:form.pod, address:form.address, contact:form.contact, phone:form.phone,
-      cpus:Number(form.cpus)||0, components:form.components,
-      orderDate:form.orderDate, dispatchDate:"", deliveryDate:"",
-      status:"Pending", trackingId:"", serials:form.serials||"",
-      qcReport:form.qcReport||"", signedQc:form.signedQc||"",
-      purpose:form.purpose||"New POD", state:form.state||"",
-    };
-    setShipments(p=>[entry,...p]);
-    setNew(false); setForm(emptyForm);
-    showToast(`Shipment for ${entry.pod} added as "Pending". Open it to preview and send the order email.`);
+
+    try {
+      const payload = {
+        podName: form.pod,
+        shippingAddress: form.address || "Address pending",
+        contactPerson: form.contact,
+        mobileNumber: form.phone || "0000000000",
+        cpus: Number(form.cpus) || 1,
+        components: form.components || undefined,
+        orderDate: form.orderDate,
+        serials: form.serials || undefined,
+        qcReport: form.qcReport || undefined,
+        signedQc: form.signedQc || undefined,
+      };
+
+      const res = await fetch('/api/shipments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || 'Failed to create shipment');
+
+      const entry = toUiShipment(data);
+      setShipments(p => [entry, ...p]);
+      setNew(false); setForm(emptyForm);
+      showToast(`Shipment for ${entry.pod} added as "Pending". Open it to preview and send the order email.`);
+    } catch (e) {
+      showToast(e?.message || 'Could not create shipment. Please check the form and try again.');
+    }
   };
 
-  const handleUpdateStatus = (id, newStatus) => {
-    setShipments(p => p.map(s => s.id===id ? {...s, status:newStatus} : s));
-    if (selShip?.id === id) setSel(prev => ({...prev, status:newStatus}));
-    showToast(`Status updated to "${newStatus}".`);
+  const handleUpdateStatus = async (id, newStatus) => {
+    const target = shipments.find(s => s.id === id);
+    if (!target) return;
+
+    try {
+      const res = await fetch(`/api/shipments/${target.dbId || target.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: uiToApiStatus(newStatus) }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || 'Failed to update status');
+
+      const updated = toUiShipment(data);
+      setShipments(p => p.map(s => s.id === id ? { ...s, ...updated } : s));
+      if (selShip?.id === id) setSel(prev => ({ ...prev, ...updated }));
+      showToast(`Status updated to "${updated.status}".`);
+    } catch (e) {
+      showToast(e?.message || 'Could not update status.');
+    }
   };
 
-  const handleEdit = (id, updatedData) => {
-    setShipments(p => p.map(s => s.id===id ? {...s,...updatedData} : s));
-    if (selShip?.id === id) setSel(prev => ({...prev,...updatedData}));
-    showToast("Shipment details updated.");
+  const handleEdit = async (id, updatedData) => {
+    const target = shipments.find(s => s.id === id);
+    if (!target) return;
+
+    try {
+      const payload = {
+        podName: updatedData.pod,
+        shippingAddress: updatedData.address,
+        contactPerson: updatedData.contact,
+        mobileNumber: updatedData.phone,
+        cpus: Number(updatedData.cpus) || 1,
+        components: updatedData.components || undefined,
+        orderDate: updatedData.orderDate || undefined,
+        dispatchDate: updatedData.dispatchDate || null,
+        deliveryDate: updatedData.deliveryDate || null,
+        trackingId: updatedData.trackingId || null,
+        serials: updatedData.serials || null,
+        qcReport: updatedData.qcReport || null,
+        signedQc: updatedData.signedQc || null,
+        notes: updatedData.remarks || null,
+        status: uiToApiStatus(updatedData.status || target.status),
+      };
+
+      const res = await fetch(`/api/shipments/${target.dbId || target.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || 'Failed to update shipment');
+
+      const updated = toUiShipment(data);
+      setShipments(p => p.map(s => s.id === id ? { ...s, ...updated } : s));
+      if (selShip?.id === id) setSel(prev => ({ ...prev, ...updated }));
+      showToast("Shipment details updated.");
+    } catch (e) {
+      showToast(e?.message || 'Could not update shipment.');
+    }
   };
 
-  const handleSendMail = (id) => {
-    // When mail is sent, update status to "Order Placed" — only if currently Pending
-    setShipments(p => p.map(s => s.id===id && s.status==="Pending" ? {...s, status:"Order Placed"} : s));
-    if (selShip?.id === id) setSel(prev => ({...prev, status:"Order Placed"}));
-    showToast("Email sent to vendor. Status updated to Order Placed.");
+  const handleSendMail = async (id) => {
+    const target = shipments.find(s => s.id === id);
+    if (!target || target.status !== "Pending") return;
+    await handleUpdateStatus(id, "Order Placed");
   };
 
-  const handleDelete = (id) => {
-    setShipments(p => p.filter(s => s.id!==id));
-    showToast("Shipment deleted.");
-  };
+  const handleDelete = async (id) => {
+    const target = shipments.find(s => s.id === id);
+    if (!target) return;
 
+    try {
+      const res = await fetch(`/api/shipments/${target.dbId || target.id}`, { method: 'DELETE' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Failed to delete shipment');
+
+      setShipments(p => p.filter(s => s.id !== id));
+      showToast("Shipment deleted.");
+    } catch (e) {
+      showToast(e?.message || 'Could not delete shipment.');
+    }
+  };
   const openDetail = (ship) => { setSel(ship); setView("detail"); };
   const displayData = sfilt==="All" ? shipments : shipments.filter(s=>s.status===sfilt);
   const currentSelShip = selShip ? shipments.find(s=>s.id===selShip.id)||selShip : null;
@@ -3077,6 +3194,7 @@ export default function App() {
           const js = await sRes.json();
           setShipments((js.shipments || []).map((x) => ({
             id: x.refId || x.id,
+            dbId: x.id,
             pod: x.podName,
             address: x.shippingAddress,
             status: mapShipmentStatus(x.status),
