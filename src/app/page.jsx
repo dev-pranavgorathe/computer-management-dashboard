@@ -3135,7 +3135,15 @@ const NAV = [
   { id:"repossession", label:"Repossession", icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg> },
   { id:"redeployment", label:"Redeployment", icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg> },
   { id:"templates",    label:"Templates",    icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg> },
+  { id:"approvals",    label:"Approvals",    icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>, roles:["ADMIN","MANAGER"] },
+  { id:"auditlogs",    label:"Audit Logs",   icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10,9 9,9 8,9"/></svg>, roles:["ADMIN","MANAGER"] },
   { id:"summary",      label:"Summary",      icon:<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg> },
+];
+
+/* ─── EXTERNAL LINKS (for manager/admin only) ────────────────────────────────── */
+const EXTERNAL_LINKS = [
+  { href: "/approvals", label: "Approval Queue", icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>, roles: ["ADMIN", "MANAGER"] },
+  { href: "/audit-logs", label: "Audit Logs", icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>, roles: ["ADMIN", "MANAGER"] },
 ];
 
 /* ─── APP ────────────────────────────────────────────────────────────────────── */
@@ -3328,7 +3336,7 @@ export default function App() {
           </div>
           <nav style={{ flex:1, padding:"10px 8px", display:"flex", flexDirection:"column", gap:1 }}>
             <div style={{ fontSize:9, fontWeight:600, color:"rgba(255,255,255,0.22)", letterSpacing:".12em", textTransform:"uppercase", padding:"8px 10px 6px" }}>Navigation</div>
-            {NAV.map(item => {
+            {NAV.filter(item => !item.roles || item.roles.includes(session?.user?.role)).map(item => {
               const active = page===item.id;
               return (
                 <button key={item.id} onClick={()=>setPage(item.id)}
@@ -3340,6 +3348,21 @@ export default function App() {
                 </button>
               );
             })}
+            
+            {/* External Links for Manager/Admin */}
+            {EXTERNAL_LINKS.filter(link => link.roles.includes(session?.user?.role)).length > 0 && (
+              <>
+                <div style={{ fontSize:9, fontWeight:600, color:"rgba(255,255,255,0.22)", letterSpacing:".12em", textTransform:"uppercase", padding:"16px 10px 6px", marginTop:8, borderTop:"1px solid rgba(255,255,255,0.07)" }}>Team Management</div>
+                {EXTERNAL_LINKS.filter(link => link.roles.includes(session?.user?.role)).map(link => (
+                  <a key={link.href} href={link.href}
+                    className="nav-btn"
+                    style={{ display:"flex", alignItems:"center", gap:9, padding:"9px 10px", borderRadius:7, cursor:"pointer", fontFamily:"inherit", fontSize:13, fontWeight:400, color:"rgba(255,255,255,0.48)", background:"transparent", border:"none", textAlign:"left", width:"100%", textDecoration:"none", transition:"all .15s" }}>
+                    <span style={{ opacity:0.6, flexShrink:0 }}>{link.icon}</span>
+                    {link.label}
+                  </a>
+                ))}
+              </>
+            )}
           </nav>
           <div style={{ padding:"10px 12px 16px", borderTop:"1px solid rgba(255,255,255,0.07)", display:"grid", gap:8 }}>
             <div style={{ display:"flex", alignItems:"center", gap:9, padding:"8px 6px", borderRadius:7, background:"rgba(255,255,255,0.04)" }}>
