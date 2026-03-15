@@ -3139,11 +3139,14 @@ const NAV = [
 
 /* ─── APP ────────────────────────────────────────────────────────────────────── */
 export default function App() {
+  const [mounted, setMounted]       = useState(false);
   const [page, setPage]             = useState("overview");
   const [shipments,  setShipments]  = useState(INIT_SHIPMENTS);
   const [complaints, setComplaints] = useState(INIT_COMPLAINTS);
   const [repos,      setRepos]      = useState(INIT_REPOSSESSIONS);
   const [redeps,     setRedeps]     = useState(INIT_REDEPLOYMENTS);
+
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     const mapShipmentStatus = (s) => ({
@@ -3284,6 +3287,8 @@ export default function App() {
 
     load();
   }, []);
+
+  if (!mounted) return null;
 
   const renderPage = () => {
     const p = { shipments, setShipments, complaints, setComplaints, repos, setRepos, redeps, setRedeps };
