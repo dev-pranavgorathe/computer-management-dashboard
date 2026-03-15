@@ -2735,6 +2735,141 @@ const Templates = () => {
   );
 };
 
+/* ─── APPROVALS ──────────────────────────────────────────────────────────────── */
+const Approvals = () => {
+  const [approvals, setApprovals] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const fetchApprovals = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch('/api/approvals?status=PENDING');
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to fetch approvals');
+        setApprovals(data.approvals || []);
+      } catch (e) {
+        setError(e.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchApprovals();
+  }, []);
+
+  const handleDecision = async (id, decision) => {
+    try {
+      const res = await fetch(`/api/approvals/${id}/decision`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ decision }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to process request');
+      setApprovals(approvals.filter(a => a.id !== id));
+    } catch (e) {
+      setError(e.message);
+    }
+  };
+
+  if (loading) return <div style={{ padding:40, textAlign:"center" }}>Loading approvals...</div>;
+
+  return (
+    <div style={{ padding:32 }}>
+      <h2 style={{ fontSize:28, fontWeight:700, color:T.text, marginBottom:8 }}>Approval Queue</h2>
+      <p style={{ fontSize:14, color:T.textMid, marginBottom:24 }}>Critical actions requiring manager/admin sign-off</p>
+      
+      {error && <div style={{ padding:16, background:"#fef2f2", border:"1px solid #fecaca", borderRadius:8, color:"#991b1b", marginBottom:16 }}>{error}</div>}
+      
+      {approvals.length === 0 ? (
+        <div style={{ padding:40, textAlign:"center", background:"#fff", border:`1px solid ${T.border}`, borderRadius:8 }}>
+          <p style={{ color:T.textMid }}>No pending approvals</p>
+        </div>
+      ) : (
+        <div style={{ display:"grid", gap:16 }}>
+          {approvals.map(item => (
+            <div key={item.id} style={{ padding:20, background:"#fff", border:`1px solid ${T.border}`, borderRadius:8 }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:12 }}>
+                <div>
+                  <div style={{ fontSize:16, fontWeight:600, color:T.text, marginBottom:4 }}>{item.action} · {item.entityType}</div>
+                  <div style={{ fontSize:13, color:T.textMid, marginBottom:8 }}>{item.entityId}</div>
+                  <div style={{ fontSize:12, color:T.textLight }}>Requested by: {item.requester?.name || item.requester?.email || 'Unknown'}</div>
+                  <div style={{ fontSize:11, color:T.textLight }}>{new Date(item.createdAt).toLocaleString()}</div>
+                </div>
+                <div style={{ display:"flex", gap:8 }}>
+                  <button onClick={() => handleDecision(item.id, 'APPROVE')} style={{ padding:"8px 16px", background:"#16a34a", color:"#fff", border:"none", borderRadius:6, cursor:"pointer", fontSize:13, fontWeight:500 }}>Approve</button>
+                  <button onClick={() => handleDecision(item.id, 'REJECT')} style={{ padding:"8px 16px", background:"#dc2626", color:"#fff", border:"none", borderRadius:6, cursor:"pointer", fontSize:13, fontWeight:500 }}>Reject</button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ─── AUDIT LOGS ─────────────────────────────────────────────────────────────── */
+const AuditLogs = () => {
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const fetchLogs = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch('/api/audit-logs?limit=100');
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to fetch audit logs');
+        setLogs(data.logs || []);
+      } catch (e) {
+        setError(e.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchLogs();
+  }, []);
+
+  if (loading) return <div style={{ padding:40, textAlign:"center" }}>Loading audit logs...</div>;
+
+  return (
+    <div style={{ padding:32 }}>
+      <h2 style={{ fontSize:28, fontWeight:700, color:T.text, marginBottom:8 }}>Audit Logs</h2>
+      <p style={{ fontSize:14, color:T.textMid, marginBottom:24 }}>Track who changed what and when</p>
+      
+      {error && <div style={{ padding:16, background:"#fef2f2", border:"1px solid #fecaca", borderRadius:8, color:"#991b1b", marginBottom:16 }}>{error}</div>}
+      
+      <div style={{ background:"#fff", border:`1px solid ${T.border}`, borderRadius:8, overflow:"hidden" }}>
+        <table style={{ width:"100%", borderCollapse:"collapse" }}>
+          <thead style={{ background:"#f9fafb" }}>
+            <tr>
+              <th style={{ padding:"12px 16px", textAlign:"left", fontSize:11, fontWeight:600, color:T.textMid, borderBottom:`1px solid ${T.border}` }}>Time</th>
+              <th style={{ padding:"12px 16px", textAlign:"left", fontSize:11, fontWeight:600, color:T.textMid, borderBottom:`1px solid ${T.border}` }}>User</th>
+              <th style={{ padding:"12px 16px", textAlign:"left", fontSize:11, fontWeight:600, color:T.textMid, borderBottom:`1px solid ${T.border}` }}>Action</th>
+              <th style={{ padding:"12px 16px", textAlign:"left", fontSize:11, fontWeight:600, color:T.textMid, borderBottom:`1px solid ${T.border}` }}>Entity Type</th>
+              <th style={{ padding:"12px 16px", textAlign:"left", fontSize:11, fontWeight:600, color:T.textMid, borderBottom:`1px solid ${T.border}` }}>Entity ID</th>
+            </tr>
+          </thead>
+          <tbody>
+            {logs.map((log) => (
+              <tr key={log.id} style={{ borderBottom:`1px solid ${T.border}` }}>
+                <td style={{ padding:"12px 16px", fontSize:13, color:T.textMid }}>{new Date(log.createdAt).toLocaleString()}</td>
+                <td style={{ padding:"12px 16px", fontSize:13, color:T.text }}>{log.user?.name || log.user?.email || 'System'}</td>
+                <td style={{ padding:"12px 16px", fontSize:13, fontWeight:500, color:T.text }}>{log.action}</td>
+                <td style={{ padding:"12px 16px", fontSize:13, color:T.textMid }}>{log.entityType}</td>
+                <td style={{ padding:"12px 16px", fontSize:12, fontFamily:"monospace", color:T.textLight }}>{log.entityId}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
 /* ─── SUMMARY ────────────────────────────────────────────────────────────────── */
 const Summary = ({ shipments, complaints, repos, redeps }) => {
   const _now = new Date();
@@ -3309,6 +3444,8 @@ export default function App() {
       case "repossession": return <Repossession {...p}/>;
       case "redeployment": return <Redeployment {...p}/>;
       case "templates":    return <Templates    {...p}/>;
+      case "approvals":    return <Approvals    {...p}/>;
+      case "auditlogs":    return <AuditLogs    {...p}/>;
       case "summary":      return <Summary      {...p}/>;
       default:             return <Overview     {...p}/>;
     }
