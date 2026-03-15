@@ -15,7 +15,9 @@ import {
   X,
   Shield,
   CheckSquare,
-  LogOut
+  LogOut,
+  Settings,
+  Users
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -26,8 +28,9 @@ const navItems = [
   { name: 'Repossessions', href: '/repossessions', icon: RefreshCcw },
   { name: 'Redeployments', href: '/redeployments', icon: ArrowRightLeft },
   { name: 'Email Templates', href: '/email-templates', icon: Mail },
-  { name: 'Approval Queue', href: '/approvals', icon: CheckSquare },
-  { name: 'Audit Logs', href: '/audit-logs', icon: Shield },
+  { name: 'Approval Queue', href: '/approvals', icon: CheckSquare, roles: ['ADMIN', 'MANAGER'] },
+  { name: 'Audit Logs', href: '/audit-logs', icon: Shield, roles: ['ADMIN', 'MANAGER'] },
+  { name: 'Permissions', href: '/permissions', icon: Users, roles: ['ADMIN'] },
   { name: 'Summary Reports', href: '/reports', icon: FileText },
 ]
 
@@ -38,7 +41,7 @@ export default function Sidebar() {
   const role = session?.user?.role || 'USER'
 
   const visibleNavItems = navItems.filter(item => {
-    if ((item.href === '/approvals' || item.href === '/audit-logs') && !(role === 'ADMIN' || role === 'MANAGER')) {
+    if (item.roles && !item.roles.includes(role)) {
       return false
     }
     return true
