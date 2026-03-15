@@ -105,7 +105,20 @@ curl -i https://computer-management-dashboard.vercel.app/api/audit-logs
 
 ---
 
-## 6) Sign-off template
+## 6) One-command demo data setup
+
+```bash
+npm run seed:demo
+```
+
+This creates/updates:
+- 4 demo users (ADMIN, MANAGER, VIEWER, USER)
+- sample shipments across statuses
+- 1 pending approval request for end-to-end workflow testing
+
+---
+
+## 7) Sign-off template
 
 - [ ] Functional test passed
 - [ ] Role access control passed
