@@ -32,10 +32,13 @@ model User {
   passwordResetTokens PasswordResetToken[]
   sessions           Session[]
   shipments          Shipment[]
+  ownedShipments     Shipment[] @relation("ShipmentOwner")
   complaints         Complaint[]
   repossessions      Repossession[]
   redeployments      Redeployment[]
   auditLogs          AuditLog[]
+  approvalsRequested ApprovalRequest[] @relation("ApprovalRequester")
+  approvalsReviewed  ApprovalRequest[] @relation("ApprovalApprover")
 
   @@index([email])
 }
@@ -104,11 +107,19 @@ model Shipment {
   updatedAt       DateTime @updatedAt
   userId          String
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ownerId         String?
+  owner           User?    @relation("ShipmentOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  team            String?
+  location        String?
+  approvalStatus  String   @default("NOT_REQUIRED") // NOT_REQUIRED | PENDING | APPROVED | REJECTED
   isDeleted       Boolean  @default(false)
   deletedAt       DateTime?
 
   @@index([userId])
+  @@index([ownerId])
+  @@index([team])
   @@index([status])
+  @@index([approvalStatus])
   @@index([orderDate])
   @@index([isDeleted])
   @@index([refId])
@@ -238,4 +249,24 @@ model AuditLog {
   @@index([entityType])
   @@index([entityId])
   @@index([createdAt])
+}
+
+model ApprovalRequest {
+  id            String   @id @default(cuid())
+  entityType    String   // Shipment
+  entityId      String
+  action        String   // DELETE | COMPLETE
+  status        String   @default("PENDING") // PENDING | APPROVED | REJECTED
+  reason        String?
+  payload       String?
+  requesterId   String
+  requester     User     @relation("ApprovalRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  approverId    String?
+  approver      User?    @relation("ApprovalApprover", fields: [approverId], references: [id], onDelete: SetNull)
+  createdAt     DateTime @default(now())
+  reviewedAt    DateTime?
+
+  @@index([entityType, entityId])
+  @@index([status])
+  @@index([requesterId])
 }

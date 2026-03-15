@@ -30,6 +30,10 @@ interface Shipment {
   status: string
   totalCost: number
   notes?: string
+  ownerId?: string | null
+  team?: string | null
+  location?: string | null
+  approvalStatus?: string
 }
 
 interface FormData {
@@ -47,6 +51,9 @@ interface FormData {
   deliveryDate: string
   totalCost: string
   notes: string
+  ownerId: string
+  team: string
+  location: string
 }
 
 const initialFormData: FormData = {
@@ -64,6 +71,9 @@ const initialFormData: FormData = {
   deliveryDate: '',
   totalCost: '',
   notes: '',
+  ownerId: '',
+  team: '',
+  location: '',
 }
 
 const statusOptions = ['PENDING', 'ORDER_SENT', 'DISPATCHED', 'IN_TRANSIT', 'DELIVERED', 'COMPLETED']
@@ -185,6 +195,9 @@ export default function ShipmentsPage() {
           deliveryDate: formData.deliveryDate || null,
           totalCost: parseFloat(formData.totalCost) || 0,
           notes: formData.notes || null,
+          ownerId: formData.ownerId || null,
+          team: formData.team || null,
+          location: formData.location || null,
         }),
       })
 
@@ -239,6 +252,9 @@ export default function ShipmentsPage() {
       deliveryDate: shipment.deliveryDate ? shipment.deliveryDate.split('T')[0] : '',
       totalCost: String(shipment.totalCost || ''),
       notes: shipment.notes || '',
+      ownerId: shipment.ownerId || '',
+      team: shipment.team || '',
+      location: shipment.location || '',
     })
     setFormErrors({})
     setShowAddModal(true)
@@ -249,7 +265,13 @@ export default function ShipmentsPage() {
 
     try {
       const response = await fetch(`/api/shipments/${shipmentId}`, { method: 'DELETE' })
-      if (!response.ok) throw new Error('Failed to delete shipment')
+      const data = await response.json().catch(() => ({}))
+      if (response.status === 202) {
+        toast.success('Deletion approval requested')
+        await fetchShipments()
+        return
+      }
+      if (!response.ok) throw new Error(data.error || 'Failed to delete shipment')
 
       toast.success('Shipment deleted successfully')
       if (selectedShipment?.id === shipmentId) {
@@ -275,6 +297,11 @@ export default function ShipmentsPage() {
         body: JSON.stringify({ status: nextStatus }),
       })
       const data = await response.json()
+      if (response.status === 202) {
+        toast.success('Completion approval requested')
+        await fetchShipments()
+        return
+      }
       if (!response.ok) {
         throw new Error(data.error || 'Failed to advance shipment status')
       }
@@ -550,6 +577,21 @@ export default function ShipmentsPage() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Owner User ID</label>
+                  <input name="ownerId" value={formData.ownerId} onChange={handleInputChange} className="w-full rounded-lg border border-gray-200 px-3 py-2" placeholder="cuid (optional)" />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Team</label>
+                  <input name="team" value={formData.team} onChange={handleInputChange} className="w-full rounded-lg border border-gray-200 px-3 py-2" placeholder="Ops / Support" />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Location</label>
+                  <input name="location" value={formData.location} onChange={handleInputChange} className="w-full rounded-lg border border-gray-200 px-3 py-2" placeholder="City / Zone" />
+                </div>
+              </div>
+
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Notes</label>
                 <textarea name="notes" value={formData.notes} onChange={handleInputChange} rows={2} className="w-full rounded-lg border border-gray-200 px-3 py-2" />
@@ -617,6 +659,9 @@ export default function ShipmentsPage() {
             { label: 'Address', value: selectedShipment.shippingAddress, fullWidth: true },
             { label: 'Order Date', value: formatDate(selectedShipment.orderDate) },
             { label: 'Tracking ID', value: selectedShipment.trackingId || '-' },
+            { label: 'Approval', value: selectedShipment.approvalStatus || 'NOT_REQUIRED' },
+            { label: 'Team', value: selectedShipment.team || '-' },
+            { label: 'Location', value: selectedShipment.location || '-' },
             { label: 'Serial Numbers', value: selectedShipment.serials || '-' },
             { label: 'Components', value: selectedShipment.components || '-' },
             { label: 'QC Report', value: selectedShipment.qcReport || '-' },

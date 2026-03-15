@@ -11,7 +11,9 @@ import {
   Mail,
   FileText,
   Menu,
-  X
+  X,
+  Shield,
+  CheckSquare
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -22,6 +24,8 @@ const navItems = [
   { name: 'Repossessions', href: '/repossessions', icon: RefreshCcw },
   { name: 'Redeployments', href: '/redeployments', icon: ArrowRightLeft },
   { name: 'Email Templates', href: '/email-templates', icon: Mail },
+  { name: 'Approval Queue', href: '/approvals', icon: CheckSquare },
+  { name: 'Audit Logs', href: '/audit-logs', icon: Shield },
   { name: 'Summary Reports', href: '/reports', icon: FileText },
 ]
 

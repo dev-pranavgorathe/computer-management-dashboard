@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import prisma from './prisma'
 
 // User roles as strings (SQLite doesn't support enums)
-type UserRole = 'ADMIN' | 'MANAGER' | 'VIEWER' | 'USER'
+export type UserRole = 'ADMIN' | 'MANAGER' | 'VIEWER' | 'USER'
 
 /**
  * Check if user has required role
@@ -28,6 +28,20 @@ const roleHierarchy: Record<UserRole, number> = {
  */
 export function hasMinimumRole(userRole: UserRole, minimumRole: UserRole): boolean {
   return roleHierarchy[userRole] >= roleHierarchy[minimumRole]
+}
+
+export function requireMinimumRole(userRole: string, minimumRole: UserRole): { ok: true } | { ok: false; response: NextResponse } {
+  const role = (userRole || 'USER') as UserRole
+  if (!roleHierarchy[role] || roleHierarchy[role] < roleHierarchy[minimumRole]) {
+    return {
+      ok: false,
+      response: NextResponse.json(
+        { error: `Insufficient permissions. Requires ${minimumRole} role or above.` },
+        { status: 403 }
+      )
+    }
+  }
+  return { ok: true }
 }
 
 /**

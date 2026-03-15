@@ -4,6 +4,37 @@ import { withAuth, canModifyResource, getClientInfo } from '@/lib/auth-helpers'
 import { createAuditLog } from '@/lib/audit-logger'
 import { shipmentUpdateSchema, idParamSchema, SHIPMENT_STATUSES } from '@/lib/validations'
 
+async function createApprovalRequest(params: {
+  entityId: string
+  action: 'DELETE' | 'COMPLETE'
+  requesterId: string
+  reason?: string
+  payload?: Record<string, unknown>
+}) {
+  const existing = await prisma.approvalRequest.findFirst({
+    where: {
+      entityType: 'Shipment',
+      entityId: params.entityId,
+      action: params.action,
+      status: 'PENDING',
+    }
+  })
+
+  if (existing) return existing
+
+  return prisma.approvalRequest.create({
+    data: {
+      entityType: 'Shipment',
+      entityId: params.entityId,
+      action: params.action,
+      status: 'PENDING',
+      reason: params.reason,
+      payload: params.payload ? JSON.stringify(params.payload) : null,
+      requesterId: params.requesterId,
+    }
+  })
+}
+
 /**
  * GET /api/shipments/[id]
  * Fetch a single shipment by ID
@@ -40,6 +71,13 @@ export async function GET(
               name: true,
               email: true,
               role: true,
+            }
+          },
+          owner: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
             }
           }
         }
@@ -108,6 +146,13 @@ export async function PUT(
         )
       }
 
+      if (user.role === 'VIEWER') {
+        return NextResponse.json(
+          { error: 'Viewers cannot update shipments' },
+          { status: 403 }
+        )
+      }
+
       if (!await canModifyResource(user.id, existingShipment.userId, user.role)) {
         return NextResponse.json(
           { error: 'You do not have permission to update this shipment' },
@@ -132,6 +177,27 @@ export async function PUT(
 
       const data = validationResult.data
 
+      if (data.status === 'COMPLETED' && user.role !== 'ADMIN' && user.role !== 'MANAGER') {
+        const req = await createApprovalRequest({
+          entityId: id,
+          action: 'COMPLETE',
+          requesterId: user.id,
+          reason: 'Completion requires manager/admin approval',
+          payload: { requestedStatus: 'COMPLETED' },
+        })
+
+        await prisma.shipment.update({
+          where: { id },
+          data: { approvalStatus: 'PENDING' },
+        })
+
+        return NextResponse.json({
+          message: 'Completion approval requested',
+          approvalRequestId: req.id,
+          status: 'PENDING_APPROVAL',
+        }, { status: 202 })
+      }
+
       // Update shipment with PRD fields
       const shipment = await prisma.shipment.update({
         where: { id },
@@ -151,10 +217,21 @@ export async function PUT(
           ...(data.deliveryDate !== undefined && { deliveryDate: data.deliveryDate }),
           ...(data.totalCost !== undefined && { totalCost: data.totalCost }),
           ...(data.notes !== undefined && { notes: data.notes }),
+          ...(data.ownerId !== undefined && { ownerId: data.ownerId || null }),
+          ...(data.team !== undefined && { team: data.team || null }),
+          ...(data.location !== undefined && { location: data.location || null }),
           ...(data.status && SHIPMENT_STATUSES.includes(data.status as typeof SHIPMENT_STATUSES[number]) && { status: data.status }),
+          ...(data.status === 'COMPLETED' && (user.role === 'ADMIN' || user.role === 'MANAGER') && { approvalStatus: 'APPROVED' }),
         },
         include: {
           user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            }
+          },
+          owner: {
             select: {
               id: true,
               name: true,
@@ -231,6 +308,33 @@ export async function DELETE(
           { error: 'You do not have permission to delete this shipment' },
           { status: 403 }
         )
+      }
+
+      if (user.role === 'VIEWER') {
+        return NextResponse.json(
+          { error: 'Viewers cannot delete shipments' },
+          { status: 403 }
+        )
+      }
+
+      if (user.role !== 'ADMIN' && user.role !== 'MANAGER') {
+        const req = await createApprovalRequest({
+          entityId: id,
+          action: 'DELETE',
+          requesterId: user.id,
+          reason: 'Deletion requires manager/admin approval',
+        })
+
+        await prisma.shipment.update({
+          where: { id },
+          data: { approvalStatus: 'PENDING' },
+        })
+
+        return NextResponse.json({
+          message: 'Deletion approval requested',
+          approvalRequestId: req.id,
+          status: 'PENDING_APPROVAL',
+        }, { status: 202 })
       }
 
       const shipment = await prisma.shipment.update({

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { withAuth, getClientInfo } from '@/lib/auth-helpers'
+import { withAuth, getClientInfo, requireMinimumRole } from '@/lib/auth-helpers'
 import { createAuditLog } from '@/lib/audit-logger'
 import { shipmentCreateSchema, shipmentUpdateSchema, paginationSchema, SHIPMENT_STATUSES } from '@/lib/validations'
 
@@ -94,6 +94,13 @@ export async function GET(request: NextRequest) {
               email: true,
               role: true,
             }
+          },
+          owner: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            }
           }
         },
         orderBy: {
@@ -132,6 +139,12 @@ export async function POST(request: NextRequest) {
   return withAuth(request, async (user) => {
     try {
       await prisma.$connect()
+
+      const roleCheck = requireMinimumRole(user.role, 'USER')
+      if (!roleCheck.ok) return roleCheck.response
+      if (user.role === 'VIEWER') {
+        return NextResponse.json({ error: 'Viewers cannot create shipments' }, { status: 403 })
+      }
 
       const body = await request.json()
 
@@ -177,11 +190,21 @@ export async function POST(request: NextRequest) {
           deliveryDate: data.deliveryDate,
           totalCost: data.totalCost || 0,
           notes: data.notes,
+          ownerId: data.ownerId || user.id,
+          team: data.team || null,
+          location: data.location || null,
           status: 'PENDING',
           userId: user.id,
         },
         include: {
           user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            }
+          },
+          owner: {
             select: {
               id: true,
               name: true,

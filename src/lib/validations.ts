@@ -111,6 +111,9 @@ const shipmentBaseSchema = z.object({
     .optional()
     .default(0),
   notes: z.string().max(1000).optional().nullable().or(z.literal('')),
+  ownerId: z.string().cuid('Invalid owner ID').optional().nullable(),
+  team: z.string().max(100, 'Team must be less than 100 characters').optional().nullable().or(z.literal('')),
+  location: z.string().max(150, 'Location must be less than 150 characters').optional().nullable().or(z.literal('')),
 })
 
 export const shipmentCreateSchema = shipmentBaseSchema.refine(data => {
