@@ -8,48 +8,48 @@ generator client {
 datasource db {
   provider  = "postgresql"
   url       = env("POSTGRES_PRISMA_URL")
-  directUrl = env("POSTGRES_URL_NON_POOLING")
+  directUrl = env("DATABASE_URL")
 }
 
 // ==================== MODELS ====================
 // Note: Using String instead of Enum for SQLite compatibility
 
 model User {
-  id            String    @id @default(cuid())
+  id            String      @id @default(cuid())
   name          String
-  email         String    @unique
+  email         String      @unique
   password      String
   emailVerified DateTime?
   image         String?
-  role          String    @default("USER") // ADMIN, MANAGER, VIEWER, USER, SUPER_ADMIN
+  role          String      @default("USER") // ADMIN, MANAGER, VIEWER, USER, SUPER_ADMIN
   customRoleId  String?
   customRole    CustomRole? @relation(fields: [customRoleId], references: [id], onDelete: SetNull)
   teamId        String?
-  team          Team?     @relation(fields: [teamId], references: [id], onDelete: SetNull)
-  isActive      Boolean   @default(true)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  isDeleted     Boolean   @default(false)
+  team          Team?       @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  isActive      Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  isDeleted     Boolean     @default(false)
   deletedAt     DateTime?
 
-  verificationTokens   VerificationToken[]
-  passwordResetTokens  PasswordResetToken[]
-  sessions             Session[]
-  shipments            Shipment[]
-  ownedShipments       Shipment[] @relation("ShipmentOwner")
-  complaints           Complaint[]
-  repossessions        Repossession[]
-  redeployments        Redeployment[]
-  auditLogs            AuditLog[]
-  approvalsRequested   ApprovalRequest[] @relation("ApprovalRequester")
-  approvalsReviewed    ApprovalRequest[] @relation("ApprovalApprover")
-  permissionRequests   PermissionRequest[] @relation("PermissionRequestUser")
-  reviewedRequests     PermissionRequest[] @relation("PermissionRequestReviewer")
-  temporaryAccess      TemporaryAccess[] @relation("TemporaryAccessUser")
-  grantedAccess        TemporaryAccess[] @relation("TemporaryAccessGranter")
-  revokedAccess        TemporaryAccess[] @relation("TemporaryAccessRevoker")
-  delegationsGiven     Delegation[] @relation("DelegationFrom")
-  delegationsReceived  Delegation[] @relation("DelegationTo")
+  verificationTokens  VerificationToken[]
+  passwordResetTokens PasswordResetToken[]
+  sessions            Session[]
+  shipments           Shipment[]
+  ownedShipments      Shipment[]           @relation("ShipmentOwner")
+  complaints          Complaint[]
+  repossessions       Repossession[]
+  redeployments       Redeployment[]
+  auditLogs           AuditLog[]
+  approvalsRequested  ApprovalRequest[]    @relation("ApprovalRequester")
+  approvalsReviewed   ApprovalRequest[]    @relation("ApprovalApprover")
+  permissionRequests  PermissionRequest[]  @relation("PermissionRequestUser")
+  reviewedRequests    PermissionRequest[]  @relation("PermissionRequestReviewer")
+  temporaryAccess     TemporaryAccess[]    @relation("TemporaryAccessUser")
+  grantedAccess       TemporaryAccess[]    @relation("TemporaryAccessGranter")
+  revokedAccess       TemporaryAccess[]    @relation("TemporaryAccessRevoker")
+  delegationsGiven    Delegation[]         @relation("DelegationFrom")
+  delegationsReceived Delegation[]         @relation("DelegationTo")
 
   @@index([email])
   @@index([role])
@@ -93,48 +93,48 @@ model Session {
 }
 
 model Shipment {
-  id              String   @id @default(cuid())
-  refId           String   @unique // "SHP-001"
+  id              String  @id @default(cuid())
+  refId           String  @unique // "SHP-001"
   podName         String
   shippingAddress String
-  state           String?  // State/Region (auto-filled or manual)
-  pincode         String?  // Pincode
+  state           String? // State/Region (auto-filled or manual)
+  pincode         String? // Pincode
   contactPerson   String
   mobileNumber    String
-  
+
   // PRD fields
-  cpus            Int      @default(1)
-  components      String?  // Auto-populated from cpus
-  serials         String?  // Comma-separated serial numbers
-  trackingId      String?  // Vendor tracking reference
-  qcReport        String?  // QC report filename (from vendor)
-  signedQc        String?  // Signed QC report filename (required for Completed)
-  additionalDocs  String?  // Additional document filenames (comma-separated)
-  purpose         String?  // Purpose: NEW_POD | MANTHAN_POD | TEACH_TO_EARN | PERIPHERALS | OTHER
-  
-  orderDate       DateTime
-  dispatchDate    DateTime?
-  deliveryDate    DateTime?
+  cpus           Int     @default(1)
+  components     String? // Auto-populated from cpus
+  serials        String? // Comma-separated serial numbers
+  trackingId     String? // Vendor tracking reference
+  qcReport       String? // QC report filename (from vendor)
+  signedQc       String? // Signed QC report filename (required for Completed)
+  additionalDocs String? // Additional document filenames (comma-separated)
+  purpose        String? // Purpose: NEW_POD | MANTHAN_POD | TEACH_TO_EARN | PERIPHERALS | OTHER
+
+  orderDate    DateTime
+  dispatchDate DateTime?
+  deliveryDate DateTime?
   // Status: PENDING | ORDER_SENT | DISPATCHED | IN_TRANSIT | DELIVERED | COMPLETED
-  status          String   @default("PENDING")
-  totalCost       Float    @default(0)
-  notes           String?
-  mailSent        Boolean  @default(false)  // Track if order mail was sent
-  mailSentAt      DateTime? // When the mail was sent
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  userId          String
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  ownerId         String?
-  owner           User?    @relation("ShipmentOwner", fields: [ownerId], references: [id], onDelete: SetNull)
-  teamId          String?
-  teamRel         Team?    @relation(fields: [teamId], references: [id], onDelete: SetNull)
-  team            String?  // Team name/code for quick reference
-  location        String?
-  approvalStatus  String   @default("NOT_REQUIRED") // NOT_REQUIRED | PENDING | APPROVED | REJECTED
-  isDeleted       Boolean  @default(false)
-  deletedAt       DateTime?
+  status       String    @default("PENDING")
+  totalCost    Float     @default(0)
+  notes        String?
+  mailSent     Boolean   @default(false) // Track if order mail was sent
+  mailSentAt   DateTime? // When the mail was sent
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ownerId        String?
+  owner          User?     @relation("ShipmentOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  teamId         String?
+  teamRel        Team?     @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  team           String? // Team name/code for quick reference
+  location       String?
+  approvalStatus String    @default("NOT_REQUIRED") // NOT_REQUIRED | PENDING | APPROVED | REJECTED
+  isDeleted      Boolean   @default(false)
+  deletedAt      DateTime?
 
   @@index([userId])
   @@index([ownerId])
@@ -150,39 +150,39 @@ model Shipment {
 }
 
 model Complaint {
-  id            String   @id @default(cuid())
-  refId         String   @unique // "CMP-001"
-  ticket        String?  // "TKT-XXXX" - manually entered or N/A
-  
+  id     String  @id @default(cuid())
+  refId  String  @unique // "CMP-001"
+  ticket String? // "TKT-XXXX" - manually entered or N/A
+
   // PRD fields
-  podName       String
-  phase         String?  // Optional at creation, editable later
-  deviceType    String   @default("CPU") // MONITOR | CPU | KEYBOARD | MOUSE | WEBCAM | HEADPHONES | PSU | NETWORK_ADAPTER | OTHER
-  deviceSerial  String?
-  issue         String   // Short issue summary
-  description   String?
-  contactPerson String?
-  mobileNumber  String?
-  reportedDate  DateTime @default(now())
-  solvedDate    DateTime?
-  resolution    String?
+  podName          String
+  phase            String? // Optional at creation, editable later
+  deviceType       String    @default("CPU") // MONITOR | CPU | KEYBOARD | MOUSE | WEBCAM | HEADPHONES | PSU | NETWORK_ADAPTER | OTHER
+  deviceSerial     String?
+  issue            String // Short issue summary
+  description      String?
+  contactPerson    String?
+  mobileNumber     String?
+  reportedDate     DateTime  @default(now())
+  solvedDate       DateTime?
+  resolution       String?
   resolutionMethod String? // Repaired | Replaced (Under Warranty) | Replaced (Out of Warranty) | Redeployment | Other
-  remarks       String?
-  attachments   String?  // Comma-separated filenames or URLs
-  
+  remarks          String?
+  attachments      String? // Comma-separated filenames or URLs
+
   // Status: OPEN | IN_PROGRESS | SOLVED
-  status        String   @default("OPEN")
+  status     String    @default("OPEN")
   // Priority: LOW | MEDIUM | HIGH | CRITICAL
-  priority      String   @default("MEDIUM")
-  mailSent      Boolean  @default(false)  // Track if vendor mail was sent
-  mailSentAt    DateTime? // When the mail was sent
-  
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  userId        String
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  isDeleted     Boolean  @default(false)
-  deletedAt     DateTime?
+  priority   String    @default("MEDIUM")
+  mailSent   Boolean   @default(false) // Track if vendor mail was sent
+  mailSentAt DateTime? // When the mail was sent
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
 
   @@index([userId])
   @@index([status])
@@ -195,31 +195,31 @@ model Complaint {
 }
 
 model Repossession {
-  id            String   @id @default(cuid())
-  refId         String   @unique // "REP-001"
-  ticket        String?  // Manually entered ticket number (optional)
-  
+  id     String  @id @default(cuid())
+  refId  String  @unique // "REP-001"
+  ticket String? // Manually entered ticket number (optional)
+
   // PRD fields
-  podName       String
+  podName         String
   shippingAddress String?
-  contactPerson String?
-  mobileNumber  String?
-  components    String?  // Equipment to be collected
-  serials       String?  // Fillable after collection
-  reshippedDate DateTime?
-  notes         String?
-  mailSent      Boolean  @default(false)  // Track if mail was sent
-  mailSentAt    DateTime? // When the mail was sent
-  
+  contactPerson   String?
+  mobileNumber    String?
+  components      String? // Equipment to be collected
+  serials         String? // Fillable after collection
+  reshippedDate   DateTime?
+  notes           String?
+  mailSent        Boolean   @default(false) // Track if mail was sent
+  mailSentAt      DateTime? // When the mail was sent
+
   // Status: PENDING | COLLECTED | IN_PROGRESS | COMPLETED
-  status        String   @default("PENDING")
-  
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  userId        String
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  isDeleted     Boolean  @default(false)
-  deletedAt     DateTime?
+  status String @default("PENDING")
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
 
   @@index([userId])
   @@index([status])
@@ -229,35 +229,35 @@ model Repossession {
 }
 
 model Redeployment {
-  id             String   @id @default(cuid())
-  refId          String   @unique // "RDP-001"
-  
+  id    String @id @default(cuid())
+  refId String @unique // "RDP-001"
+
   // PRD fields
-  podName        String   // Destination POD
+  podName         String // Destination POD
   shippingAddress String?
-  contactPerson  String?
-  mobileNumber   String?
-  sourcePod      String?  // Source POD (filled after vendor dispatch)
-  components     String?
-  serials        String?
+  contactPerson   String?
+  mobileNumber    String?
+  sourcePod       String? // Source POD (filled after vendor dispatch)
+  components      String?
+  serials         String?
   complaintTicket String? // Linked complaint ticket for traceability (optional, can be N/A)
-  trackingId     String?
-  orderDate      DateTime @default(now())
-  dispatchDate   DateTime?
-  deliveryDate   DateTime?
-  mailSent       Boolean  @default(false)  // Track if mail was sent
-  mailSentAt     DateTime? // When the mail was sent
-  
+  trackingId      String?
+  orderDate       DateTime  @default(now())
+  dispatchDate    DateTime?
+  deliveryDate    DateTime?
+  mailSent        Boolean   @default(false) // Track if mail was sent
+  mailSentAt      DateTime? // When the mail was sent
+
   // Status: PENDING | ORDER_SENT | IN_TRANSIT | DELIVERED | COMPLETED
-  status         String   @default("PENDING")
-  notes          String?
-  
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  isDeleted      Boolean  @default(false)
-  deletedAt      DateTime?
+  status String  @default("PENDING")
+  notes  String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
 
   @@index([userId])
   @@index([status])
@@ -268,14 +268,14 @@ model Redeployment {
 
 model AuditLog {
   id         String   @id @default(cuid())
-  action     String   // CREATE, UPDATE, DELETE, VIEW, STATUS_CHANGE, etc.
-  entityType String   // Shipment, Complaint, Repossession, Redeployment
+  action     String // CREATE, UPDATE, DELETE, VIEW, STATUS_CHANGE, etc.
+  entityType String // Shipment, Complaint, Repossession, Redeployment
   entityId   String
   userId     String?
   user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   ipAddress  String?
   userAgent  String?
-  changes    String?  // JSON string for before/after values
+  changes    String? // JSON string for before/after values
   createdAt  DateTime @default(now())
 
   @@index([userId])
@@ -285,19 +285,19 @@ model AuditLog {
 }
 
 model ApprovalRequest {
-  id            String   @id @default(cuid())
-  entityType    String   // Shipment
-  entityId      String
-  action        String   // DELETE | COMPLETE
-  status        String   @default("PENDING") // PENDING | APPROVED | REJECTED
-  reason        String?
-  payload       String?
-  requesterId   String
-  requester     User     @relation("ApprovalRequester", fields: [requesterId], references: [id], onDelete: Cascade)
-  approverId    String?
-  approver      User?    @relation("ApprovalApprover", fields: [approverId], references: [id], onDelete: SetNull)
-  createdAt     DateTime @default(now())
-  reviewedAt    DateTime?
+  id          String    @id @default(cuid())
+  entityType  String // Shipment
+  entityId    String
+  action      String // DELETE | COMPLETE
+  status      String    @default("PENDING") // PENDING | APPROVED | REJECTED
+  reason      String?
+  payload     String?
+  requesterId String
+  requester   User      @relation("ApprovalRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  approverId  String?
+  approver    User?     @relation("ApprovalApprover", fields: [approverId], references: [id], onDelete: SetNull)
+  createdAt   DateTime  @default(now())
+  reviewedAt  DateTime?
 
   @@index([entityType, entityId])
   @@index([status])
@@ -312,7 +312,7 @@ model CustomRole {
   permissions Json
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
+
   users User[]
 
   @@index([name])
@@ -329,9 +329,9 @@ model Team {
   children    Team[]   @relation("TeamHierarchy")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
-  members     User[]
-  shipments   Shipment[]
+
+  members   User[]
+  shipments Shipment[]
 
   @@index([name])
   @@index([code])
@@ -339,19 +339,19 @@ model Team {
 }
 
 model PermissionRequest {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   userId        String
-  user          User     @relation("PermissionRequestUser", fields: [userId], references: [id], onDelete: Cascade)
+  user          User      @relation("PermissionRequestUser", fields: [userId], references: [id], onDelete: Cascade)
   requestedRole String
   currentRole   String
   reason        String
-  status        String   @default("PENDING")
+  status        String    @default("PENDING")
   reviewedBy    String?
-  reviewer      User?    @relation("PermissionRequestReviewer", fields: [reviewedBy], references: [id], onDelete: SetNull)
+  reviewer      User?     @relation("PermissionRequestReviewer", fields: [reviewedBy], references: [id], onDelete: SetNull)
   reviewedAt    DateTime?
   reviewNotes   String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   @@index([userId])
   @@index([status])
@@ -380,18 +380,18 @@ model TemporaryAccess {
 }
 
 model Delegation {
-  id         String   @id @default(cuid())
-  fromUserId String
-  fromUser   User     @relation("DelegationFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
-  toUserId   String
-  toUser     User     @relation("DelegationTo", fields: [toUserId], references: [id], onDelete: Cascade)
+  id          String   @id @default(cuid())
+  fromUserId  String
+  fromUser    User     @relation("DelegationFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUserId    String
+  toUser      User     @relation("DelegationTo", fields: [toUserId], references: [id], onDelete: Cascade)
   permissions Json
-  reason     String
-  startDate  DateTime
-  endDate    DateTime
-  isActive   Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  reason      String
+  startDate   DateTime
+  endDate     DateTime
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([fromUserId])
   @@index([toUserId])
