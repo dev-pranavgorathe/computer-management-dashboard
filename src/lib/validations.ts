@@ -133,18 +133,15 @@ const shipmentBaseSchema = z.object({
   
   orderDate: z
     .string()
-    .min(1, 'Order date is required')
-    .transform(str => new Date(str)),
+    .min(1, 'Order date is required'),
   dispatchDate: z
     .string()
     .optional()
-    .nullable()
-    .transform(str => str ? new Date(str) : null),
+    .nullable(),
   deliveryDate: z
     .string()
     .optional()
-    .nullable()
-    .transform(str => str ? new Date(str) : null),
+    .nullable(),
   totalCost: z
     .number()
     .min(0, 'Total cost cannot be negative')
@@ -157,17 +154,7 @@ const shipmentBaseSchema = z.object({
   location: z.string().max(150, 'Location must be less than 150 characters').optional().nullable(),
 })
 
-export const shipmentCreateSchema = shipmentBaseSchema.refine(data => {
-  if (data.dispatchDate && data.dispatchDate < data.orderDate) {
-    return false
-  }
-  if (data.deliveryDate && data.dispatchDate && data.deliveryDate < data.dispatchDate) {
-    return false
-  }
-  return true
-}, {
-  message: 'Invalid date sequence: dispatch must be after order, delivery after dispatch',
-})
+export const shipmentCreateSchema = shipmentBaseSchema
 
 export const shipmentUpdateSchema = shipmentBaseSchema.partial().extend({
   status: z.enum(SHIPMENT_STATUSES).optional(),
