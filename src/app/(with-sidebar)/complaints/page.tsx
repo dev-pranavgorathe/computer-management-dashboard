@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { AlertTriangle, Download, Edit, Eye, Loader2, Plus, Search, Trash2 } from 'lucide-react'
+import { AlertTriangle, Download, Edit, Eye, Loader2, Plus, Search, Trash2, Mail } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import Modal from '@/components/Modal'
 import { exportToCSV, exportToExcel, formatDate } from '@/lib/export'
@@ -25,6 +25,8 @@ interface Complaint {
   attachments?: string | null
   status: 'OPEN' | 'IN_PROGRESS' | 'SOLVED'
   priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+  mailSent: boolean
+  mailSentAt?: string | null
   createdAt: string
 }
 
@@ -51,7 +53,7 @@ const initialFormData: ComplaintFormData = {
   issue: '',
   description: '',
   contactPerson: '',
-  mobileNumber: '',
+  mobileNumber: '+91 ',
   priority: 'MEDIUM',
   status: 'OPEN',
   resolution: '',
@@ -75,7 +77,7 @@ const deviceTypes = ['CPU', 'MONITOR', 'KEYBOARD', 'MOUSE', 'WEBCAM', 'HEADPHONE
 
 function getFormData(complaint?: Complaint | null): ComplaintFormData {
   if (!complaint) {
-    return initialFormData
+    return { ...initialFormData, mobileNumber: '+91 ' }
   }
 
   return {
@@ -86,7 +88,7 @@ function getFormData(complaint?: Complaint | null): ComplaintFormData {
     issue: complaint.issue,
     description: complaint.description || '',
     contactPerson: complaint.contactPerson || '',
-    mobileNumber: complaint.mobileNumber || '',
+    mobileNumber: complaint.mobileNumber || '+91 ',
     priority: complaint.priority,
     status: complaint.status,
     resolution: complaint.resolution || '',
@@ -108,9 +110,10 @@ export default function ComplaintsPage() {
   const [showFormModal, setShowFormModal] = useState(false)
   const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null)
   const [editingComplaint, setEditingComplaint] = useState<Complaint | null>(null)
-  const [formData, setFormData] = useState<ComplaintFormData>(initialFormData)
+  const [formData, setFormData] = useState<ComplaintFormData>({ ...initialFormData, mobileNumber: '+91 ' })
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
+  const [sendingMail, setSendingMail] = useState(false)
 
   const fetchComplaints = async () => {
     try {
@@ -149,11 +152,13 @@ export default function ComplaintsPage() {
     setCurrentPage(1)
   }, [searchTerm, statusFilter, priorityFilter, deviceTypeFilter])
 
+  // Combine OPEN and IN_PROGRESS for counting
   const stats = {
     total: totalRecords,
-    solved: complaints.filter(complaint => complaint.status === 'SOLVED').length,
-    inProgress: complaints.filter(complaint => complaint.status === 'IN_PROGRESS').length,
-    open: complaints.filter(complaint => complaint.status === 'OPEN').length,
+    solved: complaints.filter(c => c.status === 'SOLVED').length,
+    openOrInProgress: complaints.filter(c => c.status === 'OPEN' || c.status === 'IN_PROGRESS').length,
+    open: complaints.filter(c => c.status === 'OPEN').length,
+    inProgress: complaints.filter(c => c.status === 'IN_PROGRESS').length,
   }
 
   const handleInputChange = (
@@ -168,7 +173,7 @@ export default function ComplaintsPage() {
 
   const handleOpenCreate = () => {
     setEditingComplaint(null)
-    setFormData(initialFormData)
+    setFormData({ ...initialFormData, mobileNumber: '+91 ' })
     setFormErrors({})
     setShowFormModal(true)
   }
@@ -218,6 +223,8 @@ export default function ComplaintsPage() {
         priority: formData.priority,
       }
 
+      // When creating, status is always OPEN
+      // When editing, we can change status
       if (editingComplaint) {
         payload.status = formData.status
         payload.resolution = formData.resolution || null
@@ -249,8 +256,11 @@ export default function ComplaintsPage() {
       toast.success(editingComplaint ? 'Complaint updated' : 'Complaint created')
       setShowFormModal(false)
       setEditingComplaint(null)
-      setFormData(initialFormData)
-      fetchComplaints()
+      setFormData({ ...initialFormData, mobileNumber: '+91 ' })
+      
+      // Refresh the list and select the new/updated complaint
+      await fetchComplaints()
+      setSelectedComplaint(data)
     } catch (err) {
       console.error(err)
       setFormErrors(prev => ({
@@ -277,6 +287,69 @@ export default function ComplaintsPage() {
     }
   }
 
+  const handleSendMail = async (complaint: Complaint) => {
+    if (complaint.mailSent) {
+      toast.error('Mail already sent for this complaint')
+      return
+    }
+    
+    if (!window.confirm('Send complaint email to vendor? This will change status to IN_PROGRESS.')) return
+
+    try {
+      setSendingMail(true)
+      // Update complaint with mailSent = true and status = IN_PROGRESS
+      const response = await fetch(`/api/complaints/${complaint.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          mailSent: true,
+          mailSentAt: new Date().toISOString(),
+          status: 'IN_PROGRESS'
+        }),
+      })
+      
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to send mail')
+      }
+
+      const updatedComplaint = await response.json()
+      toast.success('Complaint email sent and status updated to IN_PROGRESS')
+      setSelectedComplaint(updatedComplaint)
+      fetchComplaints()
+    } catch (err) {
+      console.error(err)
+      toast.error(err instanceof Error ? err.message : 'Failed to send mail')
+    } finally {
+      setSendingMail(false)
+    }
+  }
+
+  const handlePreviewMail = (complaint: Complaint) => {
+    const mailContent = `
+Complaint Email Preview
+=======================
+Ticket: ${complaint.ticket}
+Ref ID: ${complaint.refId}
+POD Name: ${complaint.podName}
+Phase: ${complaint.phase || 'N/A'}
+Device Type: ${complaint.deviceType}
+Device Serial: ${complaint.deviceSerial || 'N/A'}
+Issue: ${complaint.issue}
+Description: ${complaint.description || 'N/A'}
+Contact Person: ${complaint.contactPerson || 'N/A'}
+Mobile: ${complaint.mobileNumber || 'N/A'}
+Priority: ${complaint.priority}
+Reported Date: ${formatDate(complaint.createdAt)}
+    `.trim()
+    alert(mailContent)
+  }
+
+  // Show mail buttons only for OPEN status (not IN_PROGRESS or SOLVED)
+  const canShowMailButtons = (complaint: Complaint) => {
+    return complaint.status === 'OPEN' && !complaint.mailSent
+  }
+
   const exportRows = complaints.map(complaint => ({
     'Ref ID': complaint.refId,
     Ticket: complaint.ticket,
@@ -285,6 +358,7 @@ export default function ComplaintsPage() {
     Issue: complaint.issue,
     Priority: complaint.priority,
     Status: complaint.status,
+    'Mail Sent': complaint.mailSent ? 'Yes' : 'No',
     'Contact Person': complaint.contactPerson || '',
     'Mobile Number': complaint.mobileNumber || '',
     'Reported Date': formatDate(complaint.createdAt),
@@ -333,12 +407,12 @@ export default function ComplaintsPage() {
           <div className="text-sm text-gray-500">Solved on this page</div>
         </div>
         <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
-          <div className="text-2xl font-bold text-blue-600">{stats.inProgress}</div>
-          <div className="text-sm text-gray-500">In Progress</div>
+          <div className="text-2xl font-bold text-blue-600">{stats.openOrInProgress}</div>
+          <div className="text-sm text-gray-500">Open / In Progress</div>
         </div>
         <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
           <div className="text-2xl font-bold text-yellow-600">{stats.open}</div>
-          <div className="text-sm text-gray-500">Open</div>
+          <div className="text-sm text-gray-500">Open (Pending Mail)</div>
         </div>
       </div>
 
@@ -351,6 +425,7 @@ export default function ComplaintsPage() {
               onChange={event => setSearchTerm(event.target.value)}
               placeholder="Search by POD, ref ID, ticket, issue, serial..."
               className="w-full rounded-lg border border-gray-200 py-2 pl-10 pr-4 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary-500"
+              autoComplete="off"
             />
           </div>
           <select
@@ -442,10 +517,31 @@ export default function ComplaintsPage() {
                         <span className={`rounded-full px-3 py-1 text-xs font-medium ${statusColors[complaint.status]}`}>
                           {complaint.status.replace(/_/g, ' ')}
                         </span>
+                        {complaint.mailSent && (
+                          <span className="ml-2 text-xs text-green-600">(Mail Sent)</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-500">{formatDate(complaint.createdAt)}</td>
                       <td className="px-6 py-4">
                         <div className="flex justify-end gap-2">
+                          {canShowMailButtons(complaint) && (
+                            <>
+                              <button 
+                                onClick={() => handlePreviewMail(complaint)} 
+                                className="p-1 text-gray-400 hover:text-gray-700"
+                                title="Preview Mail"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </button>
+                              <button 
+                                onClick={() => handleSendMail(complaint)} 
+                                className="p-1 text-gray-400 hover:text-blue-600"
+                                title="Send Mail"
+                              >
+                                <Mail className="h-4 w-4" />
+                              </button>
+                            </>
+                          )}
                           <button onClick={() => handleOpenView(complaint.id)} className="p-1 text-gray-400 hover:text-gray-700">
                             <Eye className="h-5 w-5" />
                           </button>
@@ -492,7 +588,7 @@ export default function ComplaintsPage() {
           onClose={() => {
             setShowFormModal(false)
             setEditingComplaint(null)
-            setFormData(initialFormData)
+            setFormData({ ...initialFormData, mobileNumber: '+91 ' })
             setFormErrors({})
           }}
           maxWidthClassName="max-w-2xl"
@@ -504,16 +600,33 @@ export default function ComplaintsPage() {
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">POD Name</label>
-                <input name="podName" value={formData.podName} onChange={handleInputChange} className="w-full rounded-lg border border-gray-200 px-3 py-2" />
+                <input 
+                  name="podName" 
+                  value={formData.podName} 
+                  onChange={handleInputChange} 
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                  autoComplete="off"
+                />
                 {formErrors.podName ? <p className="mt-1 text-xs text-red-500">{formErrors.podName}</p> : null}
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Phase</label>
-                <input name="phase" value={formData.phase} onChange={handleInputChange} className="w-full rounded-lg border border-gray-200 px-3 py-2" />
+                <input 
+                  name="phase" 
+                  value={formData.phase} 
+                  onChange={handleInputChange} 
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                  autoComplete="off"
+                />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Device Type</label>
-                <select name="deviceType" value={formData.deviceType} onChange={handleInputChange} className="w-full rounded-lg border border-gray-200 px-3 py-2">
+                <select 
+                  name="deviceType" 
+                  value={formData.deviceType} 
+                  onChange={handleInputChange} 
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                >
                   {deviceTypes.map(type => (
                     <option key={type} value={type}>{type.replace(/_/g, ' ')}</option>
                   ))}
@@ -521,11 +634,22 @@ export default function ComplaintsPage() {
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Device Serial</label>
-                <input name="deviceSerial" value={formData.deviceSerial} onChange={handleInputChange} className="w-full rounded-lg border border-gray-200 px-3 py-2" />
+                <input 
+                  name="deviceSerial" 
+                  value={formData.deviceSerial} 
+                  onChange={handleInputChange} 
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                  autoComplete="off"
+                />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Priority</label>
-                <select name="priority" value={formData.priority} onChange={handleInputChange} className="w-full rounded-lg border border-gray-200 px-3 py-2">
+                <select 
+                  name="priority" 
+                  value={formData.priority} 
+                  onChange={handleInputChange} 
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                >
                   <option value="LOW">Low</option>
                   <option value="MEDIUM">Medium</option>
                   <option value="HIGH">High</option>
@@ -535,7 +659,12 @@ export default function ComplaintsPage() {
               {editingComplaint ? (
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">Status</label>
-                  <select name="status" value={formData.status} onChange={handleInputChange} className="w-full rounded-lg border border-gray-200 px-3 py-2">
+                  <select 
+                    name="status" 
+                    value={formData.status} 
+                    onChange={handleInputChange} 
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                  >
                     <option value="OPEN">Open</option>
                     <option value="IN_PROGRESS">In Progress</option>
                     <option value="SOLVED">Solved</option>
@@ -544,31 +673,71 @@ export default function ComplaintsPage() {
               ) : null}
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Contact Person</label>
-                <input name="contactPerson" value={formData.contactPerson} onChange={handleInputChange} className="w-full rounded-lg border border-gray-200 px-3 py-2" />
+                <input 
+                  name="contactPerson" 
+                  value={formData.contactPerson} 
+                  onChange={handleInputChange} 
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                  autoComplete="off"
+                />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Mobile Number</label>
-                <input name="mobileNumber" value={formData.mobileNumber} onChange={handleInputChange} className="w-full rounded-lg border border-gray-200 px-3 py-2" />
+                <input 
+                  name="mobileNumber" 
+                  value={formData.mobileNumber} 
+                  onChange={handleInputChange} 
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                  placeholder="+91 XXXXX XXXXX"
+                  autoComplete="off"
+                />
               </div>
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Issue</label>
-              <input name="issue" value={formData.issue} onChange={handleInputChange} className="w-full rounded-lg border border-gray-200 px-3 py-2" />
+              <input 
+                name="issue" 
+                value={formData.issue} 
+                onChange={handleInputChange} 
+                className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                autoComplete="off"
+              />
               {formErrors.issue ? <p className="mt-1 text-xs text-red-500">{formErrors.issue}</p> : null}
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Description</label>
-              <textarea name="description" value={formData.description} onChange={handleInputChange} rows={3} className="w-full rounded-lg border border-gray-200 px-3 py-2" />
+              <textarea 
+                name="description" 
+                value={formData.description} 
+                onChange={handleInputChange} 
+                rows={3} 
+                className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                autoComplete="off"
+              />
             </div>
             {editingComplaint ? (
               <>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">Resolution</label>
-                  <textarea name="resolution" value={formData.resolution} onChange={handleInputChange} rows={2} className="w-full rounded-lg border border-gray-200 px-3 py-2" />
+                  <textarea 
+                    name="resolution" 
+                    value={formData.resolution} 
+                    onChange={handleInputChange} 
+                    rows={2} 
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                    autoComplete="off"
+                  />
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">Remarks</label>
-                  <textarea name="remarks" value={formData.remarks} onChange={handleInputChange} rows={2} className="w-full rounded-lg border border-gray-200 px-3 py-2" />
+                  <textarea 
+                    name="remarks" 
+                    value={formData.remarks} 
+                    onChange={handleInputChange} 
+                    rows={2} 
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                    autoComplete="off"
+                  />
                 </div>
               </>
             ) : null}
@@ -599,6 +768,11 @@ export default function ComplaintsPage() {
               <span className={`rounded px-2 py-1 text-xs font-medium ${priorityColors[selectedComplaint.priority]}`}>
                 {selectedComplaint.priority}
               </span>
+              {selectedComplaint.mailSent && (
+                <span className="rounded bg-green-100 px-2 py-1 text-xs font-medium text-green-700">
+                  Mail Sent
+                </span>
+              )}
             </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
@@ -638,6 +812,26 @@ export default function ComplaintsPage() {
               <p className="text-sm text-gray-500">Resolution</p>
               <p className="text-gray-900">{selectedComplaint.resolution || '-'}</p>
             </div>
+            
+            {/* Mail buttons - only show for OPEN status */}
+            {canShowMailButtons(selectedComplaint) && (
+              <div className="flex gap-3 rounded-lg border border-blue-200 bg-blue-50 p-4">
+                <button
+                  onClick={() => handlePreviewMail(selectedComplaint)}
+                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  Preview Mail
+                </button>
+                <button
+                  onClick={() => handleSendMail(selectedComplaint)}
+                  disabled={sendingMail}
+                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {sendingMail ? 'Sending...' : 'Send Mail to Vendor'}
+                </button>
+              </div>
+            )}
+            
             <div className="flex justify-end gap-3 border-t border-gray-100 pt-4">
               <button onClick={() => handleOpenEdit(selectedComplaint.id)} className="rounded-lg border border-gray-200 px-4 py-2 text-gray-600">
                 Edit

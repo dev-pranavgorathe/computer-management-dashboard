@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { withAuth, canModifyResource, getClientInfo } from '@/lib/auth-helpers'
 import { createAuditLog } from '@/lib/audit-logger'
-import { shipmentUpdateSchema, idParamSchema, SHIPMENT_STATUSES } from '@/lib/validations'
+import { shipmentUpdateSchema, idParamSchema, SHIPMENT_STATUSES, SHIPMENT_PURPOSES } from '@/lib/validations'
 
 async function createApprovalRequest(params: {
   entityId: string
@@ -212,6 +212,9 @@ export async function PUT(
           ...(data.trackingId !== undefined && { trackingId: data.trackingId }),
           ...(data.qcReport !== undefined && { qcReport: data.qcReport }),
           ...(data.signedQc !== undefined && { signedQc: data.signedQc }),
+          ...(data.purpose && { purpose: data.purpose }),
+          ...(data.mailSent !== undefined && { mailSent: data.mailSent }),
+          ...(data.mailSentAt !== undefined && { mailSentAt: data.mailSentAt }),
           ...(data.orderDate && { orderDate: data.orderDate }),
           ...(data.dispatchDate !== undefined && { dispatchDate: data.dispatchDate }),
           ...(data.deliveryDate !== undefined && { deliveryDate: data.deliveryDate }),

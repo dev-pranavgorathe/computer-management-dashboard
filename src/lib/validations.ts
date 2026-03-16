@@ -34,6 +34,8 @@ export const signInSchema = z.object({
 
 // PRD: Status pipeline - Pending → Order Sent → Dispatched → In Transit → Delivered → Completed
 export const SHIPMENT_STATUSES = ['PENDING', 'ORDER_SENT', 'DISPATCHED', 'IN_TRANSIT', 'DELIVERED', 'COMPLETED'] as const
+export const SHIPMENT_PURPOSES = ['NEW_SETUP', 'REPLACEMENT', 'UPGRADE', 'RELOCATION', 'OTHER'] as const
+export const SHIPMENT_PURPOSES = ['NEW_SETUP', 'REPLACEMENT', 'UPGRADE', 'RELOCATION', 'OTHER'] as const
 
 const shipmentBaseSchema = z.object({
   podName: z
@@ -50,7 +52,15 @@ const shipmentBaseSchema = z.object({
     .max(100, 'Contact person name must be less than 100 characters'),
   mobileNumber: z
     .string()
-    .regex(/^\+?[\d\s\-()]{10,15}$/, 'Invalid phone number format'),
+    .regex(/^\+?[\d\s\-()]{10,15}$/, 'Invalid phone number format')
+    .transform(val => {
+      // Auto-prefix with +91 if it's a 10-digit Indian number without prefix
+      const cleaned = val.replace(/[\s\-()]/g, '')
+      if (/^\d{10}$/.test(cleaned)) {
+        return `+91${cleaned}`
+      }
+      return val.startsWith('+') ? val : `+${cleaned}`
+    }),
   
   // PRD fields
   cpus: z
@@ -89,6 +99,11 @@ const shipmentBaseSchema = z.object({
     .optional()
     .nullable()
     .or(z.literal('')),
+  purpose: z
+    .enum(SHIPMENT_PURPOSES)
+    .optional()
+    .default('NEW_SETUP'),
+  mailSent: z.boolean().optional().default(false),
   
   orderDate: z
     .string()
@@ -114,6 +129,7 @@ const shipmentBaseSchema = z.object({
   ownerId: z.string().cuid('Invalid owner ID').optional().nullable(),
   team: z.string().max(100, 'Team must be less than 100 characters').optional().nullable().or(z.literal('')),
   location: z.string().max(150, 'Location must be less than 150 characters').optional().nullable().or(z.literal('')),
+  purpose: z.enum(SHIPMENT_PURPOSES).optional().nullable(),
 })
 
 export const shipmentCreateSchema = shipmentBaseSchema.refine(data => {
@@ -131,6 +147,8 @@ export const shipmentCreateSchema = shipmentBaseSchema.refine(data => {
 
 export const shipmentUpdateSchema = shipmentBaseSchema.partial().extend({
   status: z.enum(SHIPMENT_STATUSES).optional(),
+  mailSent: z.boolean().optional(),
+  mailSentAt: z.string().optional().nullable().transform(str => str ? new Date(str) : null),
 })
 
 // ==================== Complaint Validations ====================
@@ -188,6 +206,8 @@ export const complaintUpdateSchema = complaintCreateSchema.partial().extend({
     .optional()
     .nullable()
     .transform(str => str ? new Date(str) : null),
+  mailSent: z.boolean().optional(),
+  mailSentAt: z.string().optional().nullable().transform(str => str ? new Date(str) : null),
 })
 
 // ==================== Repossession Validations ====================

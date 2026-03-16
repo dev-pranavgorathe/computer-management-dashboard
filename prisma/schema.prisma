@@ -107,6 +107,7 @@ model Shipment {
   trackingId      String?  // Vendor tracking reference
   qcReport        String?  // QC report filename (from vendor)
   signedQc        String?  // Signed QC report filename (required for Completed)
+  purpose         String?  // Purpose: NEW_SETUP | REPLACEMENT | UPGRADE | RELOCATION | OTHER
   
   orderDate       DateTime
   dispatchDate    DateTime?
@@ -115,6 +116,8 @@ model Shipment {
   status          String   @default("PENDING")
   totalCost       Float    @default(0)
   notes           String?
+  mailSent        Boolean  @default(false)  // Track if order mail was sent
+  mailSentAt      DateTime? // When the mail was sent
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -165,6 +168,8 @@ model Complaint {
   status        String   @default("OPEN")
   // Priority: LOW | MEDIUM | HIGH | CRITICAL
   priority      String   @default("MEDIUM")
+  mailSent      Boolean  @default(false)  // Track if vendor mail was sent
+  mailSentAt    DateTime? // When the mail was sent
   
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -196,6 +201,8 @@ model Repossession {
   serials       String?  // Fillable after collection
   reshippedDate DateTime?
   notes         String?
+  mailSent      Boolean  @default(false)  // Track if mail was sent
+  mailSentAt    DateTime? // When the mail was sent
   
   // Status: PENDING | COLLECTED | IN_PROGRESS | COMPLETED
   status        String   @default("PENDING")
@@ -231,6 +238,8 @@ model Redeployment {
   orderDate      DateTime @default(now())
   dispatchDate   DateTime?
   deliveryDate   DateTime?
+  mailSent       Boolean  @default(false)  // Track if mail was sent
+  mailSentAt     DateTime? // When the mail was sent
   
   // Status: PENDING | ORDER_SENT | IN_TRANSIT | DELIVERED | COMPLETED
   status         String   @default("PENDING")

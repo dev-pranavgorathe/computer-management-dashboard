@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Search, Filter, Plus, Eye, Edit, Truck, Download, Loader2, Trash2 } from 'lucide-react'
+import { Search, Filter, Plus, Eye, Edit, Truck, Download, Loader2, Trash2, Mail } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { exportToCSV, exportToExcel, formatDate, formatCurrency } from '@/lib/export'
 import StatusPipeline, { StatusBadge, SHIPMENT_PIPELINE } from '@/components/StatusPipeline'
@@ -24,6 +24,9 @@ interface Shipment {
   trackingId: string | null
   qcReport: string | null
   signedQc: string | null
+  purpose: string | null
+  mailSent: boolean
+  mailSentAt: string | null
   orderDate: string
   dispatchDate: string | null
   deliveryDate: string | null
@@ -42,6 +45,7 @@ interface FormData {
   contactPerson: string
   mobileNumber: string
   cpus: string
+  purpose: string
   serials: string
   trackingId: string
   qcReport: string
@@ -60,8 +64,9 @@ const initialFormData: FormData = {
   podName: '',
   shippingAddress: '',
   contactPerson: '',
-  mobileNumber: '',
+  mobileNumber: '+91 ',
   cpus: '1',
+  purpose: 'NEW_SETUP',
   serials: '',
   trackingId: '',
   qcReport: '',
@@ -77,9 +82,22 @@ const initialFormData: FormData = {
 }
 
 const statusOptions = ['PENDING', 'ORDER_SENT', 'DISPATCHED', 'IN_TRANSIT', 'DELIVERED', 'COMPLETED']
+const purposeOptions = [
+  { value: 'NEW_SETUP', label: 'New Setup' },
+  { value: 'REPLACEMENT', label: 'Replacement' },
+  { value: 'UPGRADE', label: 'Upgrade' },
+  { value: 'RELOCATION', label: 'Relocation' },
+  { value: 'OTHER', label: 'Other' },
+]
 
 function formatStatus(status: string) {
   return status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
+}
+
+function formatPurpose(purpose: string | null) {
+  if (!purpose) return '-'
+  const found = purposeOptions.find(p => p.value === purpose)
+  return found ? found.label : purpose
 }
 
 export default function ShipmentsPage() {
@@ -100,6 +118,7 @@ export default function ShipmentsPage() {
   const [formData, setFormData] = useState<FormData>(initialFormData)
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
+  const [sendingMail, setSendingMail] = useState(false)
 
   const fetchShipments = async () => {
     try {
@@ -146,7 +165,7 @@ export default function ShipmentsPage() {
 
   const hasActiveFilters = searchTerm || statusFilter !== 'all' || dateRange.from || dateRange.to
 
-  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = event.target
     setFormData(prev => ({ ...prev, [name]: value }))
     if (formErrors[name]) {
@@ -186,6 +205,7 @@ export default function ShipmentsPage() {
           contactPerson: formData.contactPerson,
           mobileNumber: formData.mobileNumber,
           cpus: parseInt(formData.cpus) || 1,
+          purpose: formData.purpose || 'OTHER',
           serials: formData.serials || null,
           trackingId: formData.trackingId || null,
           qcReport: formData.qcReport || null,
@@ -214,12 +234,18 @@ export default function ShipmentsPage() {
         throw new Error(errorData.error || 'Failed to save shipment')
       }
 
+      const savedShipment = await response.json()
       setFormData(initialFormData)
       setFormErrors({})
       setShowAddModal(false)
       setEditingShipment(null)
       await fetchShipments()
       toast.success(editingShipment ? 'Shipment updated successfully' : 'Shipment created successfully')
+      
+      // Select the newly created/updated shipment
+      if (savedShipment) {
+        setSelectedShipment(savedShipment)
+      }
     } catch (err) {
       console.error('Error saving shipment:', err)
       setFormErrors(prev => ({ ...prev, submit: err instanceof Error ? err.message : 'Failed to save shipment' }))
@@ -230,7 +256,7 @@ export default function ShipmentsPage() {
 
   const openAddModal = () => {
     setEditingShipment(null)
-    setFormData(initialFormData)
+    setFormData({ ...initialFormData, mobileNumber: '+91 ' })
     setFormErrors({})
     setShowAddModal(true)
   }
@@ -243,6 +269,7 @@ export default function ShipmentsPage() {
       contactPerson: shipment.contactPerson,
       mobileNumber: shipment.mobileNumber,
       cpus: String(shipment.cpus),
+      purpose: shipment.purpose || 'OTHER',
       serials: shipment.serials || '',
       trackingId: shipment.trackingId || '',
       qcReport: shipment.qcReport || '',
@@ -315,15 +342,81 @@ export default function ShipmentsPage() {
     }
   }
 
+  const handleSendMail = async (shipment: Shipment) => {
+    if (shipment.mailSent) {
+      toast.error('Mail already sent for this shipment')
+      return
+    }
+    
+    if (!window.confirm('Send order email to vendor?')) return
+
+    try {
+      setSendingMail(true)
+      // Update shipment with mailSent = true and status = ORDER_SENT
+      const response = await fetch(`/api/shipments/${shipment.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          mailSent: true,
+          mailSentAt: new Date().toISOString(),
+          status: 'ORDER_SENT'
+        }),
+      })
+      
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to send mail')
+      }
+
+      const updatedShipment = await response.json()
+      toast.success('Order email sent successfully')
+      setSelectedShipment(updatedShipment)
+      await fetchShipments()
+    } catch (err) {
+      console.error(err)
+      toast.error(err instanceof Error ? err.message : 'Failed to send mail')
+    } finally {
+      setSendingMail(false)
+    }
+  }
+
+  const handlePreviewMail = (shipment: Shipment) => {
+    // Show mail preview in an alert for now (can be enhanced to a modal)
+    const mailContent = `
+Order Email Preview
+==================
+Ref ID: ${shipment.refId}
+POD Name: ${shipment.podName}
+Shipping Address: ${shipment.shippingAddress}
+Contact Person: ${shipment.contactPerson}
+Mobile: ${shipment.mobileNumber}
+CPUs: ${shipment.cpus}
+Components: ${shipment.components || 'N/A'}
+Purpose: ${formatPurpose(shipment.purpose)}
+Order Date: ${formatDate(shipment.orderDate)}
+Notes: ${shipment.notes || 'N/A'}
+    `.trim()
+    alert(mailContent)
+  }
+
+  const canShowMailButtons = (shipment: Shipment) => {
+    // Show mail buttons only if:
+    // 1. Status is PENDING or ORDER_SENT
+    // 2. Mail hasn't been sent yet
+    return (shipment.status === 'PENDING' || shipment.status === 'ORDER_SENT') && !shipment.mailSent
+  }
+
   const exportRows = shipments.map(shipment => ({
     'Ref ID': shipment.refId,
     'POD Name': shipment.podName,
     CPUs: shipment.cpus,
+    Purpose: formatPurpose(shipment.purpose),
     Components: shipment.components || '',
     'Contact Person': shipment.contactPerson,
     'Mobile Number': shipment.mobileNumber,
     'Tracking ID': shipment.trackingId || '',
     Status: formatStatus(shipment.status),
+    'Mail Sent': shipment.mailSent ? 'Yes' : 'No',
     'Order Date': formatDate(shipment.orderDate),
     'Dispatch Date': formatDate(shipment.dispatchDate),
     'Delivery Date': formatDate(shipment.deliveryDate),
@@ -384,6 +477,7 @@ export default function ShipmentsPage() {
                 value={searchTerm}
                 onChange={event => setSearchTerm(event.target.value)}
                 className="w-full rounded-lg border border-gray-200 py-2 pl-10 pr-4 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary-500"
+                autoComplete="off"
               />
             </div>
             <div className="flex flex-wrap gap-2">
@@ -434,6 +528,7 @@ export default function ShipmentsPage() {
                       <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Ref ID</th>
                       <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">POD Name</th>
                       <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">CPUs</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Purpose</th>
                       <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Contact</th>
                       <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Order Date</th>
                       <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Status</th>
@@ -456,6 +551,9 @@ export default function ShipmentsPage() {
                           <span className="font-semibold text-gray-900">{shipment.cpus}</span>
                           <span className="ml-1 text-sm text-gray-500">PCs</span>
                         </td>
+                        <td className="whitespace-nowrap px-6 py-4">
+                          <span className="text-gray-700">{formatPurpose(shipment.purpose)}</span>
+                        </td>
                         <td className="px-6 py-4">
                           <div>
                             <div className="text-gray-900">{shipment.contactPerson}</div>
@@ -465,9 +563,30 @@ export default function ShipmentsPage() {
                         <td className="whitespace-nowrap px-6 py-4 text-gray-500">{formatDate(shipment.orderDate)}</td>
                         <td className="whitespace-nowrap px-6 py-4">
                           <StatusBadge status={shipment.status} />
+                          {shipment.mailSent && (
+                            <span className="ml-2 text-xs text-green-600">(Mail Sent)</span>
+                          )}
                         </td>
                         <td className="whitespace-nowrap px-6 py-4 text-right">
                           <div className="flex items-center justify-end gap-2">
+                            {canShowMailButtons(shipment) && (
+                              <>
+                                <button
+                                  onClick={() => handlePreviewMail(shipment)}
+                                  className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                                  title="Preview Mail"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleSendMail(shipment)}
+                                  className="rounded-lg p-2 text-gray-400 hover:bg-blue-50 hover:text-blue-600"
+                                  title="Send Mail"
+                                >
+                                  <Mail className="h-4 w-4" />
+                                </button>
+                              </>
+                            )}
                             <button
                               onClick={() => setSelectedShipment(shipment)}
                               className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
@@ -523,78 +642,192 @@ export default function ShipmentsPage() {
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">POD Name <span className="text-red-500">*</span></label>
-                  <input name="podName" value={formData.podName} onChange={handleInputChange} className={`w-full rounded-lg border px-3 py-2 ${formErrors.podName ? 'border-red-500' : 'border-gray-200'}`} />
+                  <input 
+                    name="podName" 
+                    value={formData.podName} 
+                    onChange={handleInputChange} 
+                    className={`w-full rounded-lg border px-3 py-2 ${formErrors.podName ? 'border-red-500' : 'border-gray-200'}`}
+                    autoComplete="off"
+                  />
                   {formErrors.podName ? <p className="mt-1 text-xs text-red-500">{formErrors.podName}</p> : null}
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">CPU Count <span className="text-red-500">*</span></label>
-                  <input type="number" min="1" name="cpus" value={formData.cpus} onChange={handleInputChange} className={`w-full rounded-lg border px-3 py-2 ${formErrors.cpus ? 'border-red-500' : 'border-gray-200'}`} />
+                  <input 
+                    type="number" 
+                    min="1" 
+                    name="cpus" 
+                    value={formData.cpus} 
+                    onChange={handleInputChange} 
+                    className={`w-full rounded-lg border px-3 py-2 ${formErrors.cpus ? 'border-red-500' : 'border-gray-200'}`}
+                    autoComplete="off"
+                  />
                   {formErrors.cpus ? <p className="mt-1 text-xs text-red-500">{formErrors.cpus}</p> : <p className="mt-1 text-xs text-gray-500">Components will be auto-generated</p>}
                 </div>
                 <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Purpose <span className="text-red-500">*</span></label>
+                  <select
+                    name="purpose"
+                    value={formData.purpose}
+                    onChange={handleInputChange}
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                  >
+                    {purposeOptions.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">Contact Person <span className="text-red-500">*</span></label>
-                  <input name="contactPerson" value={formData.contactPerson} onChange={handleInputChange} className={`w-full rounded-lg border px-3 py-2 ${formErrors.contactPerson ? 'border-red-500' : 'border-gray-200'}`} />
+                  <input 
+                    name="contactPerson" 
+                    value={formData.contactPerson} 
+                    onChange={handleInputChange} 
+                    className={`w-full rounded-lg border px-3 py-2 ${formErrors.contactPerson ? 'border-red-500' : 'border-gray-200'}`}
+                    autoComplete="off"
+                  />
                   {formErrors.contactPerson ? <p className="mt-1 text-xs text-red-500">{formErrors.contactPerson}</p> : null}
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">Mobile Number <span className="text-red-500">*</span></label>
-                  <input name="mobileNumber" value={formData.mobileNumber} onChange={handleInputChange} className={`w-full rounded-lg border px-3 py-2 ${formErrors.mobileNumber ? 'border-red-500' : 'border-gray-200'}`} />
+                  <input 
+                    name="mobileNumber" 
+                    value={formData.mobileNumber} 
+                    onChange={handleInputChange} 
+                    className={`w-full rounded-lg border px-3 py-2 ${formErrors.mobileNumber ? 'border-red-500' : 'border-gray-200'}`}
+                    placeholder="+91 XXXXX XXXXX"
+                    autoComplete="off"
+                  />
                   {formErrors.mobileNumber ? <p className="mt-1 text-xs text-red-500">{formErrors.mobileNumber}</p> : null}
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">Order Date <span className="text-red-500">*</span></label>
-                  <input type="date" name="orderDate" value={formData.orderDate} onChange={handleInputChange} className={`w-full rounded-lg border px-3 py-2 ${formErrors.orderDate ? 'border-red-500' : 'border-gray-200'}`} />
+                  <input 
+                    type="date" 
+                    name="orderDate" 
+                    value={formData.orderDate} 
+                    onChange={handleInputChange} 
+                    className={`w-full rounded-lg border px-3 py-2 ${formErrors.orderDate ? 'border-red-500' : 'border-gray-200'}`}
+                    autoComplete="off"
+                  />
                   {formErrors.orderDate ? <p className="mt-1 text-xs text-red-500">{formErrors.orderDate}</p> : null}
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">Total Cost</label>
-                  <input type="number" name="totalCost" value={formData.totalCost} onChange={handleInputChange} className="w-full rounded-lg border border-gray-200 px-3 py-2" placeholder="0" />
+                  <input 
+                    type="number" 
+                    name="totalCost" 
+                    value={formData.totalCost} 
+                    onChange={handleInputChange} 
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2" 
+                    placeholder="0"
+                    autoComplete="off"
+                  />
                 </div>
               </div>
 
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Shipping Address <span className="text-red-500">*</span></label>
-                <textarea name="shippingAddress" value={formData.shippingAddress} onChange={handleInputChange} rows={2} className={`w-full rounded-lg border px-3 py-2 ${formErrors.shippingAddress ? 'border-red-500' : 'border-gray-200'}`} />
+                <textarea 
+                  name="shippingAddress" 
+                  value={formData.shippingAddress} 
+                  onChange={handleInputChange} 
+                  rows={2} 
+                  className={`w-full rounded-lg border px-3 py-2 ${formErrors.shippingAddress ? 'border-red-500' : 'border-gray-200'}`}
+                  autoComplete="off"
+                />
                 {formErrors.shippingAddress ? <p className="mt-1 text-xs text-red-500">{formErrors.shippingAddress}</p> : null}
               </div>
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">Serial Numbers</label>
-                  <input name="serials" value={formData.serials} onChange={handleInputChange} className="w-full rounded-lg border border-gray-200 px-3 py-2" />
+                  <input 
+                    name="serials" 
+                    value={formData.serials} 
+                    onChange={handleInputChange} 
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                    autoComplete="off"
+                  />
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">Tracking ID</label>
-                  <input name="trackingId" value={formData.trackingId} onChange={handleInputChange} className="w-full rounded-lg border border-gray-200 px-3 py-2" />
+                  <input 
+                    name="trackingId" 
+                    value={formData.trackingId} 
+                    onChange={handleInputChange} 
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                    autoComplete="off"
+                  />
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">QC Report</label>
-                  <input name="qcReport" value={formData.qcReport} onChange={handleInputChange} className="w-full rounded-lg border border-gray-200 px-3 py-2" />
+                  <input 
+                    name="qcReport" 
+                    value={formData.qcReport} 
+                    onChange={handleInputChange} 
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                    autoComplete="off"
+                  />
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">Signed QC</label>
-                  <input name="signedQc" value={formData.signedQc} onChange={handleInputChange} className="w-full rounded-lg border border-gray-200 px-3 py-2" />
+                  <input 
+                    name="signedQc" 
+                    value={formData.signedQc} 
+                    onChange={handleInputChange} 
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                    autoComplete="off"
+                  />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">Owner User ID</label>
-                  <input name="ownerId" value={formData.ownerId} onChange={handleInputChange} className="w-full rounded-lg border border-gray-200 px-3 py-2" placeholder="cuid (optional)" />
+                  <input 
+                    name="ownerId" 
+                    value={formData.ownerId} 
+                    onChange={handleInputChange} 
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2" 
+                    placeholder="cuid (optional)"
+                    autoComplete="off"
+                  />
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">Team</label>
-                  <input name="team" value={formData.team} onChange={handleInputChange} className="w-full rounded-lg border border-gray-200 px-3 py-2" placeholder="Ops / Support" />
+                  <input 
+                    name="team" 
+                    value={formData.team} 
+                    onChange={handleInputChange} 
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2" 
+                    placeholder="Ops / Support"
+                    autoComplete="off"
+                  />
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">Location</label>
-                  <input name="location" value={formData.location} onChange={handleInputChange} className="w-full rounded-lg border border-gray-200 px-3 py-2" placeholder="City / Zone" />
+                  <input 
+                    name="location" 
+                    value={formData.location} 
+                    onChange={handleInputChange} 
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2" 
+                    placeholder="City / Zone"
+                    autoComplete="off"
+                  />
                 </div>
               </div>
 
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Notes</label>
-                <textarea name="notes" value={formData.notes} onChange={handleInputChange} rows={2} className="w-full rounded-lg border border-gray-200 px-3 py-2" />
+                <textarea 
+                  name="notes" 
+                  value={formData.notes} 
+                  onChange={handleInputChange} 
+                  rows={2} 
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                  autoComplete="off"
+                />
               </div>
 
               <div className="flex justify-end gap-3 pt-4">
@@ -639,26 +872,47 @@ export default function ShipmentsPage() {
               value: (
                 <div className="space-y-4">
                   <StatusPipeline steps={SHIPMENT_PIPELINE} currentStatus={selectedShipment.status} />
-                  <button
-                    onClick={() => handleAdvanceStatus(selectedShipment)}
-                    disabled={selectedShipment.status === 'COMPLETED'}
-                    className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-gray-300"
-                  >
-                    {selectedShipment.status === 'COMPLETED'
-                      ? 'Completed'
-                      : `Advance to ${formatStatus(SHIPMENT_PIPELINE[SHIPMENT_PIPELINE.findIndex(step => step.value === selectedShipment.status) + 1]?.value || selectedShipment.status)}`}
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleAdvanceStatus(selectedShipment)}
+                      disabled={selectedShipment.status === 'COMPLETED'}
+                      className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-gray-300"
+                    >
+                      {selectedShipment.status === 'COMPLETED'
+                        ? 'Completed'
+                        : `Advance to ${formatStatus(SHIPMENT_PIPELINE[SHIPMENT_PIPELINE.findIndex(step => step.value === selectedShipment.status) + 1]?.value || selectedShipment.status)}`}
+                    </button>
+                    {canShowMailButtons(selectedShipment) && (
+                      <>
+                        <button
+                          onClick={() => handlePreviewMail(selectedShipment)}
+                          className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                        >
+                          Preview Mail
+                        </button>
+                        <button
+                          onClick={() => handleSendMail(selectedShipment)}
+                          disabled={sendingMail}
+                          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                        >
+                          {sendingMail ? 'Sending...' : 'Send Mail'}
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               ),
               fullWidth: true,
             },
             { label: 'POD Name', value: selectedShipment.podName },
             { label: 'CPUs', value: selectedShipment.cpus },
+            { label: 'Purpose', value: formatPurpose(selectedShipment.purpose) },
             { label: 'Contact Person', value: selectedShipment.contactPerson },
             { label: 'Mobile', value: selectedShipment.mobileNumber },
             { label: 'Address', value: selectedShipment.shippingAddress, fullWidth: true },
             { label: 'Order Date', value: formatDate(selectedShipment.orderDate) },
             { label: 'Tracking ID', value: selectedShipment.trackingId || '-' },
+            { label: 'Mail Sent', value: selectedShipment.mailSent ? `Yes (${formatDate(selectedShipment.mailSentAt)})` : 'No' },
             { label: 'Approval', value: selectedShipment.approvalStatus || 'NOT_REQUIRED' },
             { label: 'Team', value: selectedShipment.team || '-' },
             { label: 'Location', value: selectedShipment.location || '-' },

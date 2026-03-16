@@ -149,6 +149,8 @@ export async function PUT(
           ...(data.remarks !== undefined && { remarks: data.remarks }),
           ...(data.attachments !== undefined && { attachments: data.attachments }),
           ...(data.solvedDate !== undefined && { solvedDate: data.solvedDate }),
+          ...(body.mailSent !== undefined && { mailSent: body.mailSent }),
+          ...(body.mailSentAt !== undefined && { mailSentAt: body.mailSentAt ? new Date(body.mailSentAt) : null }),
         },
         include: {
           user: {

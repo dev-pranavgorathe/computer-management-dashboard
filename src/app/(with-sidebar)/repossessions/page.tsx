@@ -37,7 +37,7 @@ const initialFormData: RepossessionFormData = {
   podName: '',
   shippingAddress: '',
   contactPerson: '',
-  mobileNumber: '',
+  mobileNumber: '+91 ',
   components: '',
   serials: '',
   notes: '',
@@ -52,13 +52,13 @@ const statusColors: Record<Repossession['status'], string> = {
 }
 
 function getFormData(item?: Repossession | null): RepossessionFormData {
-  if (!item) return initialFormData
+  if (!item) return { ...initialFormData, mobileNumber: '+91 ' }
 
   return {
     podName: item.podName,
     shippingAddress: item.shippingAddress || '',
     contactPerson: item.contactPerson || '',
-    mobileNumber: item.mobileNumber || '',
+    mobileNumber: item.mobileNumber || '+91 ',
     components: item.components || '',
     serials: item.serials || '',
     notes: item.notes || '',
@@ -78,7 +78,7 @@ export default function RepossessionsPage() {
   const [selectedRecord, setSelectedRecord] = useState<Repossession | null>(null)
   const [editingRecord, setEditingRecord] = useState<Repossession | null>(null)
   const [showFormModal, setShowFormModal] = useState(false)
-  const [formData, setFormData] = useState<RepossessionFormData>(initialFormData)
+  const [formData, setFormData] = useState<RepossessionFormData>({ ...initialFormData, mobileNumber: '+91 ' })
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
 
@@ -93,7 +93,10 @@ export default function RepossessionsPage() {
       if (searchTerm) params.set('search', searchTerm)
       if (statusFilter !== 'all') params.set('status', statusFilter)
 
-      const response = await fetch(`/api/repossessions?${params.toString()}`)
+      const response = await fetch(`/api/repossessions?${params.toString()}`, {
+        cache: 'no-store',
+      })
+      
       if (!response.ok) throw new Error('Failed to fetch repossessions')
 
       const data = await response.json()
@@ -134,7 +137,7 @@ export default function RepossessionsPage() {
 
   const openCreate = () => {
     setEditingRecord(null)
-    setFormData(initialFormData)
+    setFormData({ ...initialFormData, mobileNumber: '+91 ' })
     setFormErrors({})
     setShowFormModal(true)
   }
@@ -169,21 +172,24 @@ export default function RepossessionsPage() {
 
     try {
       setSubmitting(true)
+      
+      const payload = {
+        podName: formData.podName,
+        shippingAddress: formData.shippingAddress || null,
+        contactPerson: formData.contactPerson || null,
+        mobileNumber: formData.mobileNumber || null,
+        components: formData.components || null,
+        serials: formData.serials || null,
+        notes: formData.notes || null,
+        ...(editingRecord && { status: formData.status }),
+      }
+      
       const response = await fetch(
         editingRecord ? `/api/repossessions/${editingRecord.id}` : '/api/repossessions',
         {
           method: editingRecord ? 'PUT' : 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            podName: formData.podName,
-            shippingAddress: formData.shippingAddress || null,
-            contactPerson: formData.contactPerson || null,
-            mobileNumber: formData.mobileNumber || null,
-            components: formData.components || null,
-            serials: formData.serials || null,
-            notes: formData.notes || null,
-            ...(editingRecord && { status: formData.status }),
-          }),
+          body: JSON.stringify(payload),
         }
       )
 
@@ -202,8 +208,11 @@ export default function RepossessionsPage() {
       toast.success(editingRecord ? 'Repossession updated' : 'Repossession created')
       setShowFormModal(false)
       setEditingRecord(null)
-      setFormData(initialFormData)
-      fetchRepossessions()
+      setFormData({ ...initialFormData, mobileNumber: '+91 ' })
+      
+      // Refresh and select the new record
+      await fetchRepossessions()
+      setSelectedRecord(data)
     } catch (err) {
       console.error(err)
       setFormErrors(prev => ({
@@ -291,6 +300,7 @@ export default function RepossessionsPage() {
               onChange={event => setSearchTerm(event.target.value)}
               placeholder="Search by POD, ref ID, ticket, serials..."
               className="w-full rounded-lg border border-gray-200 py-2 pl-10 pr-4 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary-500"
+              autoComplete="off"
             />
           </div>
           <select
@@ -381,7 +391,7 @@ export default function RepossessionsPage() {
           onClose={() => {
             setShowFormModal(false)
             setEditingRecord(null)
-            setFormData(initialFormData)
+            setFormData({ ...initialFormData, mobileNumber: '+91 ' })
           }}
           maxWidthClassName="max-w-2xl"
         >
@@ -389,8 +399,15 @@ export default function RepossessionsPage() {
             {formErrors.submit ? <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{formErrors.submit}</div> : null}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">POD Name</label>
-                <input name="podName" value={formData.podName} onChange={handleInputChange} className="w-full rounded-lg border border-gray-200 px-3 py-2" />
+                <label className="mb-1 block text-sm font-medium text-gray-700">POD Name *</label>
+                <input 
+                  name="podName" 
+                  value={formData.podName} 
+                  onChange={handleInputChange} 
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                  autoComplete="off"
+                  required
+                />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Status</label>
@@ -403,28 +420,68 @@ export default function RepossessionsPage() {
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Contact Person</label>
-                <input name="contactPerson" value={formData.contactPerson} onChange={handleInputChange} className="w-full rounded-lg border border-gray-200 px-3 py-2" />
+                <input 
+                  name="contactPerson" 
+                  value={formData.contactPerson} 
+                  onChange={handleInputChange} 
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                  autoComplete="off"
+                />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Mobile Number</label>
-                <input name="mobileNumber" value={formData.mobileNumber} onChange={handleInputChange} className="w-full rounded-lg border border-gray-200 px-3 py-2" />
+                <input 
+                  name="mobileNumber" 
+                  value={formData.mobileNumber} 
+                  onChange={handleInputChange} 
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                  placeholder="+91 XXXXX XXXXX"
+                  autoComplete="off"
+                />
               </div>
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Shipping Address</label>
-              <textarea name="shippingAddress" value={formData.shippingAddress} onChange={handleInputChange} rows={2} className="w-full rounded-lg border border-gray-200 px-3 py-2" />
+              <textarea 
+                name="shippingAddress" 
+                value={formData.shippingAddress} 
+                onChange={handleInputChange} 
+                rows={2} 
+                className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                autoComplete="off"
+              />
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Components</label>
-              <textarea name="components" value={formData.components} onChange={handleInputChange} rows={2} className="w-full rounded-lg border border-gray-200 px-3 py-2" />
+              <textarea 
+                name="components" 
+                value={formData.components} 
+                onChange={handleInputChange} 
+                rows={2} 
+                className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                autoComplete="off"
+              />
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Serials</label>
-              <input name="serials" value={formData.serials} onChange={handleInputChange} className="w-full rounded-lg border border-gray-200 px-3 py-2" />
+              <input 
+                name="serials" 
+                value={formData.serials} 
+                onChange={handleInputChange} 
+                className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                autoComplete="off"
+              />
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Notes</label>
-              <textarea name="notes" value={formData.notes} onChange={handleInputChange} rows={2} className="w-full rounded-lg border border-gray-200 px-3 py-2" />
+              <textarea 
+                name="notes" 
+                value={formData.notes} 
+                onChange={handleInputChange} 
+                rows={2} 
+                className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                autoComplete="off"
+              />
             </div>
             <div className="flex justify-end gap-3">
               <button type="button" onClick={() => setShowFormModal(false)} className="rounded-lg border border-gray-200 px-4 py-2 text-gray-600">Cancel</button>

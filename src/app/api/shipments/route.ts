@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { withAuth, getClientInfo, requireMinimumRole } from '@/lib/auth-helpers'
 import { createAuditLog } from '@/lib/audit-logger'
-import { shipmentCreateSchema, shipmentUpdateSchema, paginationSchema, SHIPMENT_STATUSES } from '@/lib/validations'
+import { shipmentCreateSchema, shipmentUpdateSchema, paginationSchema, SHIPMENT_STATUSES, SHIPMENT_PURPOSES } from '@/lib/validations'
 
 // Helper to generate refId
 async function generateShipmentRefId(): Promise<string> {
@@ -185,6 +185,7 @@ export async function POST(request: NextRequest) {
           trackingId: data.trackingId,
           qcReport: data.qcReport,
           signedQc: data.signedQc,
+          purpose: data.purpose || 'OTHER',
           orderDate: data.orderDate,
           dispatchDate: data.dispatchDate,
           deliveryDate: data.deliveryDate,
@@ -194,6 +195,7 @@ export async function POST(request: NextRequest) {
           team: data.team || null,
           location: data.location || null,
           status: 'PENDING',
+          mailSent: false,
           userId: user.id,
         },
         include: {

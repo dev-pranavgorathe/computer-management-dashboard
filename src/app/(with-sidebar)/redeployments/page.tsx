@@ -47,7 +47,7 @@ const initialFormData: RedeploymentFormData = {
   podName: '',
   shippingAddress: '',
   contactPerson: '',
-  mobileNumber: '',
+  mobileNumber: '+91 ',
   sourcePod: '',
   components: '',
   serials: '',
@@ -69,13 +69,13 @@ const statusColors: Record<Redeployment['status'], string> = {
 }
 
 function getFormData(item?: Redeployment | null): RedeploymentFormData {
-  if (!item) return initialFormData
+  if (!item) return { ...initialFormData, mobileNumber: '+91 ' }
 
   return {
     podName: item.podName,
     shippingAddress: item.shippingAddress || '',
     contactPerson: item.contactPerson || '',
-    mobileNumber: item.mobileNumber || '',
+    mobileNumber: item.mobileNumber || '+91 ',
     sourcePod: item.sourcePod || '',
     components: item.components || '',
     serials: item.serials || '',
@@ -101,7 +101,7 @@ export default function RedeploymentsPage() {
   const [selectedRecord, setSelectedRecord] = useState<Redeployment | null>(null)
   const [editingRecord, setEditingRecord] = useState<Redeployment | null>(null)
   const [showFormModal, setShowFormModal] = useState(false)
-  const [formData, setFormData] = useState<RedeploymentFormData>(initialFormData)
+  const [formData, setFormData] = useState<RedeploymentFormData>({ ...initialFormData, mobileNumber: '+91 ' })
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
 
@@ -115,7 +115,9 @@ export default function RedeploymentsPage() {
       if (searchTerm) params.set('search', searchTerm)
       if (statusFilter !== 'all') params.set('status', statusFilter)
 
-      const response = await fetch(`/api/redeployments?${params.toString()}`)
+      const response = await fetch(`/api/redeployments?${params.toString()}`, {
+        cache: 'no-store',
+      })
       if (!response.ok) throw new Error('Failed to fetch redeployments')
       const data = await response.json()
       setRedeployments(data.redeployments || [])
@@ -154,7 +156,7 @@ export default function RedeploymentsPage() {
 
   const openCreate = () => {
     setEditingRecord(null)
-    setFormData(initialFormData)
+    setFormData({ ...initialFormData, mobileNumber: '+91 ' })
     setFormErrors({})
     setShowFormModal(true)
   }
@@ -189,27 +191,30 @@ export default function RedeploymentsPage() {
 
     try {
       setSubmitting(true)
+      
+      const payload = {
+        podName: formData.podName,
+        shippingAddress: formData.shippingAddress || null,
+        contactPerson: formData.contactPerson || null,
+        mobileNumber: formData.mobileNumber || null,
+        sourcePod: formData.sourcePod || null,
+        components: formData.components || null,
+        serials: formData.serials || null,
+        complaintTicket: formData.complaintTicket || null,
+        trackingId: formData.trackingId || null,
+        orderDate: formData.orderDate,
+        dispatchDate: formData.dispatchDate || null,
+        deliveryDate: formData.deliveryDate || null,
+        notes: formData.notes || null,
+        ...(editingRecord && { status: formData.status }),
+      }
+      
       const response = await fetch(
         editingRecord ? `/api/redeployments/${editingRecord.id}` : '/api/redeployments',
         {
           method: editingRecord ? 'PUT' : 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            podName: formData.podName,
-            shippingAddress: formData.shippingAddress || null,
-            contactPerson: formData.contactPerson || null,
-            mobileNumber: formData.mobileNumber || null,
-            sourcePod: formData.sourcePod || null,
-            components: formData.components || null,
-            serials: formData.serials || null,
-            complaintTicket: formData.complaintTicket || null,
-            trackingId: formData.trackingId || null,
-            orderDate: formData.orderDate,
-            dispatchDate: formData.dispatchDate || null,
-            deliveryDate: formData.deliveryDate || null,
-            notes: formData.notes || null,
-            ...(editingRecord && { status: formData.status }),
-          }),
+          body: JSON.stringify(payload),
         }
       )
 
@@ -228,8 +233,11 @@ export default function RedeploymentsPage() {
       toast.success(editingRecord ? 'Redeployment updated' : 'Redeployment created')
       setShowFormModal(false)
       setEditingRecord(null)
-      setFormData(initialFormData)
-      fetchRedeployments()
+      setFormData({ ...initialFormData, mobileNumber: '+91 ' })
+      
+      // Refresh and select the record
+      await fetchRedeployments()
+      setSelectedRecord(data)
     } catch (err) {
       console.error(err)
       setFormErrors(prev => ({
@@ -319,6 +327,7 @@ export default function RedeploymentsPage() {
               onChange={event => setSearchTerm(event.target.value)}
               placeholder="Search by source POD, destination POD, ref ID, ticket..."
               className="w-full rounded-lg border border-gray-200 py-2 pl-10 pr-4 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-primary-500"
+              autoComplete="off"
             />
           </div>
           <select
@@ -415,7 +424,7 @@ export default function RedeploymentsPage() {
           onClose={() => {
             setShowFormModal(false)
             setEditingRecord(null)
-            setFormData(initialFormData)
+            setFormData({ ...initialFormData, mobileNumber: '+91 ' })
           }}
           maxWidthClassName="max-w-2xl"
         >
@@ -423,24 +432,57 @@ export default function RedeploymentsPage() {
             {formErrors.submit ? <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{formErrors.submit}</div> : null}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Destination POD</label>
-                <input name="podName" value={formData.podName} onChange={handleInputChange} className="w-full rounded-lg border border-gray-200 px-3 py-2" />
+                <label className="mb-1 block text-sm font-medium text-gray-700">Destination POD *</label>
+                <input 
+                  name="podName" 
+                  value={formData.podName} 
+                  onChange={handleInputChange} 
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                  autoComplete="off"
+                  required
+                />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Source POD</label>
-                <input name="sourcePod" value={formData.sourcePod} onChange={handleInputChange} className="w-full rounded-lg border border-gray-200 px-3 py-2" />
+                <input 
+                  name="sourcePod" 
+                  value={formData.sourcePod} 
+                  onChange={handleInputChange} 
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                  autoComplete="off"
+                />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Contact Person</label>
-                <input name="contactPerson" value={formData.contactPerson} onChange={handleInputChange} className="w-full rounded-lg border border-gray-200 px-3 py-2" />
+                <input 
+                  name="contactPerson" 
+                  value={formData.contactPerson} 
+                  onChange={handleInputChange} 
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                  autoComplete="off"
+                />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Mobile Number</label>
-                <input name="mobileNumber" value={formData.mobileNumber} onChange={handleInputChange} className="w-full rounded-lg border border-gray-200 px-3 py-2" />
+                <input 
+                  name="mobileNumber" 
+                  value={formData.mobileNumber} 
+                  onChange={handleInputChange} 
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                  placeholder="+91 XXXXX XXXXX"
+                  autoComplete="off"
+                />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Order Date</label>
-                <input type="date" name="orderDate" value={formData.orderDate} onChange={handleInputChange} className="w-full rounded-lg border border-gray-200 px-3 py-2" />
+                <input 
+                  type="date" 
+                  name="orderDate" 
+                  value={formData.orderDate} 
+                  onChange={handleInputChange} 
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                  autoComplete="off"
+                />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Status</label>
@@ -454,38 +496,91 @@ export default function RedeploymentsPage() {
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Dispatch Date</label>
-                <input type="date" name="dispatchDate" value={formData.dispatchDate} onChange={handleInputChange} className="w-full rounded-lg border border-gray-200 px-3 py-2" />
+                <input 
+                  type="date" 
+                  name="dispatchDate" 
+                  value={formData.dispatchDate} 
+                  onChange={handleInputChange} 
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                  autoComplete="off"
+                />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Delivery Date</label>
-                <input type="date" name="deliveryDate" value={formData.deliveryDate} onChange={handleInputChange} className="w-full rounded-lg border border-gray-200 px-3 py-2" />
+                <input 
+                  type="date" 
+                  name="deliveryDate" 
+                  value={formData.deliveryDate} 
+                  onChange={handleInputChange} 
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                  autoComplete="off"
+                />
               </div>
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Shipping Address</label>
-              <textarea name="shippingAddress" value={formData.shippingAddress} onChange={handleInputChange} rows={2} className="w-full rounded-lg border border-gray-200 px-3 py-2" />
+              <textarea 
+                name="shippingAddress" 
+                value={formData.shippingAddress} 
+                onChange={handleInputChange} 
+                rows={2} 
+                className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                autoComplete="off"
+              />
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Components</label>
-              <textarea name="components" value={formData.components} onChange={handleInputChange} rows={2} className="w-full rounded-lg border border-gray-200 px-3 py-2" />
+              <textarea 
+                name="components" 
+                value={formData.components} 
+                onChange={handleInputChange} 
+                rows={2} 
+                className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                autoComplete="off"
+              />
             </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Serials</label>
-                <input name="serials" value={formData.serials} onChange={handleInputChange} className="w-full rounded-lg border border-gray-200 px-3 py-2" />
+                <input 
+                  name="serials" 
+                  value={formData.serials} 
+                  onChange={handleInputChange} 
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                  autoComplete="off"
+                />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Tracking ID</label>
-                <input name="trackingId" value={formData.trackingId} onChange={handleInputChange} className="w-full rounded-lg border border-gray-200 px-3 py-2" />
+                <input 
+                  name="trackingId" 
+                  value={formData.trackingId} 
+                  onChange={handleInputChange} 
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                  autoComplete="off"
+                />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Complaint Ticket</label>
-                <input name="complaintTicket" value={formData.complaintTicket} onChange={handleInputChange} className="w-full rounded-lg border border-gray-200 px-3 py-2" />
+                <input 
+                  name="complaintTicket" 
+                  value={formData.complaintTicket} 
+                  onChange={handleInputChange} 
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                  autoComplete="off"
+                />
               </div>
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Notes</label>
-              <textarea name="notes" value={formData.notes} onChange={handleInputChange} rows={2} className="w-full rounded-lg border border-gray-200 px-3 py-2" />
+              <textarea 
+                name="notes" 
+                value={formData.notes} 
+                onChange={handleInputChange} 
+                rows={2} 
+                className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                autoComplete="off"
+              />
             </div>
             <div className="flex justify-end gap-3">
               <button type="button" onClick={() => setShowFormModal(false)} className="rounded-lg border border-gray-200 px-4 py-2 text-gray-600">Cancel</button>
