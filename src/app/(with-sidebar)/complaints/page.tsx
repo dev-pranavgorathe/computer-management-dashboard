@@ -9,7 +9,7 @@ import { exportToCSV, exportToExcel, formatDate } from '@/lib/export'
 interface Complaint {
   id: string
   refId: string
-  ticket: string
+  ticket?: string | null
   podName: string
   phase?: string | null
   deviceType: string
@@ -21,6 +21,7 @@ interface Complaint {
   reportedDate?: string
   solvedDate?: string | null
   resolution?: string | null
+  resolutionMethod?: string | null
   remarks?: string | null
   attachments?: string | null
   status: 'OPEN' | 'IN_PROGRESS' | 'SOLVED'
@@ -42,7 +43,10 @@ interface ComplaintFormData {
   priority: Complaint['priority']
   status: Complaint['status']
   resolution: string
+  resolutionMethod: string
+  ticket: string
   remarks: string
+  attachments: string
 }
 
 const initialFormData: ComplaintFormData = {
@@ -57,7 +61,10 @@ const initialFormData: ComplaintFormData = {
   priority: 'MEDIUM',
   status: 'OPEN',
   resolution: '',
+  resolutionMethod: '',
+  ticket: '',
   remarks: '',
+  attachments: '',
 }
 
 const statusColors: Record<Complaint['status'], string> = {
@@ -74,6 +81,20 @@ const priorityColors: Record<Complaint['priority'], string> = {
 }
 
 const deviceTypes = ['CPU', 'MONITOR', 'KEYBOARD', 'MOUSE', 'WEBCAM', 'HEADPHONES', 'PSU', 'NETWORK_ADAPTER', 'OTHER']
+
+const resolutionMethods = [
+  { value: 'REPAIRED', label: 'Repaired' },
+  { value: 'REPLACED_UNDER_WARRANTY', label: 'Replaced (Under Warranty)' },
+  { value: 'REPLACED_OUT_OF_WARRANTY', label: 'Replaced (Out of Warranty)' },
+  { value: 'REDEPLOYMENT', label: 'Redeployment' },
+  { value: 'OTHER', label: 'Other' },
+]
+
+function formatResolutionMethod(method: string | null | undefined): string {
+  if (!method) return '-'
+  const found = resolutionMethods.find(m => m.value === method)
+  return found ? found.label : method
+}
 
 function getFormData(complaint?: Complaint | null): ComplaintFormData {
   if (!complaint) {
@@ -92,7 +113,10 @@ function getFormData(complaint?: Complaint | null): ComplaintFormData {
     priority: complaint.priority,
     status: complaint.status,
     resolution: complaint.resolution || '',
+    resolutionMethod: complaint.resolutionMethod || '',
+    ticket: complaint.ticket || '',
     remarks: complaint.remarks || '',
+    attachments: complaint.attachments || '',
   }
 }
 
@@ -128,7 +152,9 @@ export default function ComplaintsPage() {
       if (priorityFilter !== 'all') params.set('priority', priorityFilter)
       if (deviceTypeFilter !== 'all') params.set('deviceType', deviceTypeFilter)
 
-      const response = await fetch(`/api/complaints?${params.toString()}`)
+      const response = await fetch(`/api/complaints?${params.toString()}`, {
+        cache: 'no-store',
+      })
       if (!response.ok) throw new Error('Failed to fetch complaints')
 
       const data = await response.json()
@@ -180,7 +206,7 @@ export default function ComplaintsPage() {
 
   const handleOpenEdit = async (id: string) => {
     try {
-      const response = await fetch(`/api/complaints/${id}`)
+      const response = await fetch(`/api/complaints/${id}`, { cache: 'no-store' })
       if (!response.ok) throw new Error('Failed to fetch complaint')
       const complaint = await response.json()
       setEditingComplaint(complaint)
@@ -195,7 +221,7 @@ export default function ComplaintsPage() {
 
   const handleOpenView = async (id: string) => {
     try {
-      const response = await fetch(`/api/complaints/${id}`)
+      const response = await fetch(`/api/complaints/${id}`, { cache: 'no-store' })
       if (!response.ok) throw new Error('Failed to fetch complaint')
       setSelectedComplaint(await response.json())
     } catch (err) {
@@ -221,6 +247,8 @@ export default function ComplaintsPage() {
         contactPerson: formData.contactPerson || null,
         mobileNumber: formData.mobileNumber || null,
         priority: formData.priority,
+        ticket: formData.ticket || null,
+        attachments: formData.attachments || null,
       }
 
       // When creating, status is always OPEN
@@ -228,6 +256,7 @@ export default function ComplaintsPage() {
       if (editingComplaint) {
         payload.status = formData.status
         payload.resolution = formData.resolution || null
+        payload.resolutionMethod = formData.resolutionMethod || null
         payload.remarks = formData.remarks || null
         payload.solvedDate = formData.status === 'SOLVED' ? new Date().toISOString() : null
       }
@@ -329,7 +358,7 @@ export default function ComplaintsPage() {
     const mailContent = `
 Complaint Email Preview
 =======================
-Ticket: ${complaint.ticket}
+Ticket: ${complaint.ticket || 'N/A'}
 Ref ID: ${complaint.refId}
 POD Name: ${complaint.podName}
 Phase: ${complaint.phase || 'N/A'}
@@ -352,12 +381,14 @@ Reported Date: ${formatDate(complaint.createdAt)}
 
   const exportRows = complaints.map(complaint => ({
     'Ref ID': complaint.refId,
-    Ticket: complaint.ticket,
+    Ticket: complaint.ticket || '',
     POD: complaint.podName,
-    'Device Type': complaint.deviceType,
+    Phase: complaint.phase || '',
+    Device: complaint.deviceType,
     Issue: complaint.issue,
     Priority: complaint.priority,
     Status: complaint.status,
+    'Resolution Method': formatResolutionMethod(complaint.resolutionMethod),
     'Mail Sent': complaint.mailSent ? 'Yes' : 'No',
     'Contact Person': complaint.contactPerson || '',
     'Mobile Number': complaint.mobileNumber || '',
@@ -477,19 +508,20 @@ Reported Date: ${formatDate(complaint.createdAt)}
             <table className="w-full">
               <thead className="border-b border-gray-200 bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Complaint</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">POD</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">POD Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">POD Phase</th>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Device</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Priority</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Issue</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Reported Date</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Solved Date</th>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Created</th>
                   <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {complaints.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                    <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
                       No complaints found for the current filters.
                     </td>
                   </tr>
@@ -497,22 +529,19 @@ Reported Date: ${formatDate(complaint.createdAt)}
                   complaints.map(complaint => (
                     <tr key={complaint.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4">
-                        <div className="font-medium text-gray-900">{complaint.refId}</div>
-                        <div className="text-sm text-gray-500">{complaint.ticket}</div>
-                      </td>
-                      <td className="px-6 py-4">
                         <div className="font-medium text-gray-900">{complaint.podName}</div>
-                        <div className="max-w-xs truncate text-sm text-gray-500">{complaint.issue}</div>
+                        <div className="text-sm text-gray-500">{complaint.ticket || 'No ticket'}</div>
                       </td>
+                      <td className="px-6 py-4 text-gray-700">{complaint.phase || '-'}</td>
                       <td className="px-6 py-4 text-sm text-gray-700">
                         <div>{complaint.deviceType.replace(/_/g, ' ')}</div>
                         <div className="text-gray-500">{complaint.deviceSerial || '-'}</div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`rounded px-2 py-1 text-xs font-medium ${priorityColors[complaint.priority]}`}>
-                          {complaint.priority}
-                        </span>
+                        <div className="max-w-xs truncate text-gray-700">{complaint.issue}</div>
                       </td>
+                      <td className="px-6 py-4 text-sm text-gray-500">{formatDate(complaint.createdAt)}</td>
+                      <td className="px-6 py-4 text-sm text-gray-500">{formatDate(complaint.solvedDate || null)}</td>
                       <td className="px-6 py-4">
                         <span className={`rounded-full px-3 py-1 text-xs font-medium ${statusColors[complaint.status]}`}>
                           {complaint.status.replace(/_/g, ' ')}
@@ -521,7 +550,6 @@ Reported Date: ${formatDate(complaint.createdAt)}
                           <span className="ml-2 text-xs text-green-600">(Mail Sent)</span>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">{formatDate(complaint.createdAt)}</td>
                       <td className="px-6 py-4">
                         <div className="flex justify-end gap-2">
                           {canShowMailButtons(complaint) && (
@@ -599,18 +627,19 @@ Reported Date: ${formatDate(complaint.createdAt)}
             ) : null}
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">POD Name</label>
+                <label className="mb-1 block text-sm font-medium text-gray-700">POD Name <span className="text-red-500">*</span></label>
                 <input 
                   name="podName" 
                   value={formData.podName} 
                   onChange={handleInputChange} 
                   className="w-full rounded-lg border border-gray-200 px-3 py-2"
                   autoComplete="off"
+                  required
                 />
                 {formErrors.podName ? <p className="mt-1 text-xs text-red-500">{formErrors.podName}</p> : null}
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Phase</label>
+                <label className="mb-1 block text-sm font-medium text-gray-700">POD Phase</label>
                 <input 
                   name="phase" 
                   value={formData.phase} 
@@ -620,7 +649,7 @@ Reported Date: ${formatDate(complaint.createdAt)}
                 />
               </div>
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Device Type</label>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Device Type <span className="text-red-500">*</span></label>
                 <select 
                   name="deviceType" 
                   value={formData.deviceType} 
@@ -657,19 +686,46 @@ Reported Date: ${formatDate(complaint.createdAt)}
                 </select>
               </div>
               {editingComplaint ? (
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">Status</label>
-                  <select 
-                    name="status" 
-                    value={formData.status} 
-                    onChange={handleInputChange} 
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2"
-                  >
-                    <option value="OPEN">Open</option>
-                    <option value="IN_PROGRESS">In Progress</option>
-                    <option value="SOLVED">Solved</option>
-                  </select>
-                </div>
+                <>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">Ticket Number</label>
+                    <input 
+                      name="ticket" 
+                      value={formData.ticket} 
+                      onChange={handleInputChange} 
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                      autoComplete="off"
+                      placeholder="TKT-XXXX or N/A"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">Status</label>
+                    <select 
+                      name="status" 
+                      value={formData.status} 
+                      onChange={handleInputChange} 
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                    >
+                      <option value="OPEN">Open</option>
+                      <option value="IN_PROGRESS">In Progress</option>
+                      <option value="SOLVED">Solved</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">Resolution Method</label>
+                    <select 
+                      name="resolutionMethod" 
+                      value={formData.resolutionMethod} 
+                      onChange={handleInputChange} 
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                    >
+                      <option value="">Select Resolution Method</option>
+                      {resolutionMethods.map(method => (
+                        <option key={method.value} value={method.value}>{method.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </>
               ) : null}
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Contact Person</label>
@@ -694,13 +750,14 @@ Reported Date: ${formatDate(complaint.createdAt)}
               </div>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">Issue</label>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Issue <span className="text-red-500">*</span></label>
               <input 
                 name="issue" 
                 value={formData.issue} 
                 onChange={handleInputChange} 
                 className="w-full rounded-lg border border-gray-200 px-3 py-2"
                 autoComplete="off"
+                required
               />
               {formErrors.issue ? <p className="mt-1 text-xs text-red-500">{formErrors.issue}</p> : null}
             </div>
@@ -715,10 +772,22 @@ Reported Date: ${formatDate(complaint.createdAt)}
                 autoComplete="off"
               />
             </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">Attachments (Google Drive links, URLs - one per line)</label>
+              <textarea 
+                name="attachments" 
+                value={formData.attachments} 
+                onChange={handleInputChange} 
+                rows={3} 
+                placeholder="https://drive.google.com/...&#10;https://example.com/file.pdf"
+                className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                autoComplete="off"
+              />
+            </div>
             {editingComplaint ? (
               <>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">Resolution</label>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Resolution Notes</label>
                   <textarea 
                     name="resolution" 
                     value={formData.resolution} 
@@ -757,7 +826,7 @@ Reported Date: ${formatDate(complaint.createdAt)}
       {selectedComplaint ? (
         <Modal
           title="Complaint Details"
-          subtitle={`${selectedComplaint.refId} • ${selectedComplaint.ticket}`}
+          subtitle={`${selectedComplaint.refId} • ${selectedComplaint.ticket || 'No Ticket'}`}
           onClose={() => setSelectedComplaint(null)}
         >
           <div className="space-y-6 p-6">
@@ -780,12 +849,20 @@ Reported Date: ${formatDate(complaint.createdAt)}
                 <p className="font-medium text-gray-900">{selectedComplaint.podName}</p>
               </div>
               <div>
+                <p className="text-sm text-gray-500">POD Phase</p>
+                <p className="font-medium text-gray-900">{selectedComplaint.phase || '-'}</p>
+              </div>
+              <div>
                 <p className="text-sm text-gray-500">Device Type</p>
                 <p className="font-medium text-gray-900">{selectedComplaint.deviceType.replace(/_/g, ' ')}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-500">Device Serial</p>
                 <p className="font-medium text-gray-900">{selectedComplaint.deviceSerial || '-'}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Ticket Number</p>
+                <p className="font-medium text-gray-900">{selectedComplaint.ticket || '-'}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-500">Reported</p>
@@ -812,6 +889,29 @@ Reported Date: ${formatDate(complaint.createdAt)}
               <p className="text-sm text-gray-500">Resolution</p>
               <p className="text-gray-900">{selectedComplaint.resolution || '-'}</p>
             </div>
+            <div>
+              <p className="text-sm text-gray-500">Resolution Method</p>
+              <p className="text-gray-900">{formatResolutionMethod(selectedComplaint.resolutionMethod)}</p>
+            </div>
+            
+            {selectedComplaint.attachments && (
+              <div>
+                <p className="text-sm text-gray-500 mb-2">Attachments</p>
+                <div className="space-y-1">
+                  {selectedComplaint.attachments.split('\n').filter(url => url.trim()).map((url, i) => (
+                    <a 
+                      key={i}
+                      href={url.trim()} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-primary-600 hover:underline text-sm break-all block"
+                    >
+                      {url.trim()}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
             
             {/* Mail buttons - only show for OPEN status */}
             {canShowMailButtons(selectedComplaint) && (
