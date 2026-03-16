@@ -58,7 +58,7 @@ const shipmentBaseSchema = z.object({
     .max(200, 'POD name must be less than 200 characters'),
   shippingAddress: z
     .string()
-    .min(10, 'Shipping address must be at least 10 characters')
+    .min(1, 'Shipping address is required')
     .max(500, 'Shipping address must be less than 500 characters'),
   state: z
     .string()
@@ -67,23 +67,24 @@ const shipmentBaseSchema = z.object({
     .nullable(),
   pincode: z
     .string()
-    .regex(/^\d{6}$/, 'Pincode must be 6 digits')
+    .max(10, 'Pincode must be less than 10 characters')
     .optional()
-    .nullable()
-    .or(z.literal('')),
+    .nullable(),
   contactPerson: z
     .string()
-    .min(2, 'Contact person name must be at least 2 characters')
+    .min(1, 'Contact person name is required')
     .max(100, 'Contact person name must be less than 100 characters'),
   mobileNumber: z
     .string()
-    .regex(/^\+?[\d\s\-()]{10,15}$/, 'Invalid phone number format')
+    .min(1, 'Mobile number is required')
+    .max(20, 'Mobile number must be less than 20 characters')
     .transform(val => {
+      // Clean up the phone number
       const cleaned = val.replace(/[\s\-()]/g, '')
       if (/^\d{10}$/.test(cleaned)) {
         return `+91${cleaned}`
       }
-      return val.startsWith('+') ? val : `+${cleaned}`
+      return val
     }),
   
   // PRD fields
@@ -97,38 +98,32 @@ const shipmentBaseSchema = z.object({
     .string()
     .max(1000, 'Components must be less than 1000 characters')
     .optional()
-    .nullable()
-    .or(z.literal('')),
+    .nullable(),
   serials: z
     .string()
     .max(2000, 'Serials must be less than 2000 characters')
     .optional()
-    .nullable()
-    .or(z.literal('')),
+    .nullable(),
   trackingId: z
     .string()
     .max(100, 'Tracking ID must be less than 100 characters')
     .optional()
-    .nullable()
-    .or(z.literal('')),
+    .nullable(),
   qcReport: z
     .string()
     .max(255, 'QC report filename must be less than 255 characters')
     .optional()
-    .nullable()
-    .or(z.literal('')),
+    .nullable(),
   signedQc: z
     .string()
     .max(255, 'Signed QC filename must be less than 255 characters')
     .optional()
-    .nullable()
-    .or(z.literal('')),
+    .nullable(),
   additionalDocs: z
     .string()
     .max(2000, 'Additional docs must be less than 2000 characters')
     .optional()
-    .nullable()
-    .or(z.literal('')),
+    .nullable(),
   purpose: z
     .string()
     .max(100, 'Purpose must be less than 100 characters')
@@ -138,8 +133,8 @@ const shipmentBaseSchema = z.object({
   
   orderDate: z
     .string()
-    .transform(str => new Date(str))
-    .refine(date => date <= new Date(), 'Order date cannot be in the future'),
+    .min(1, 'Order date is required')
+    .transform(str => new Date(str)),
   dispatchDate: z
     .string()
     .optional()
@@ -156,10 +151,10 @@ const shipmentBaseSchema = z.object({
     .max(99999999.99, 'Total cost exceeds maximum value')
     .optional()
     .default(0),
-  notes: z.string().max(1000).optional().nullable().or(z.literal('')),
-  ownerId: z.string().cuid('Invalid owner ID').optional().nullable(),
-  team: z.string().max(100, 'Team must be less than 100 characters').optional().nullable().or(z.literal('')),
-  location: z.string().max(150, 'Location must be less than 150 characters').optional().nullable().or(z.literal('')),
+  notes: z.string().max(1000).optional().nullable(),
+  ownerId: z.string().optional().nullable(),
+  team: z.string().max(100, 'Team must be less than 100 characters').optional().nullable(),
+  location: z.string().max(150, 'Location must be less than 150 characters').optional().nullable(),
 })
 
 export const shipmentCreateSchema = shipmentBaseSchema.refine(data => {
@@ -199,7 +194,7 @@ export const complaintCreateSchema = z.object({
     .max(50, 'Phase must be less than 50 characters')
     .optional(),
   deviceType: z
-    .enum(DEVICE_TYPES)
+    .string()
     .default('CPU'),
   deviceSerial: z
     .string()
@@ -207,7 +202,7 @@ export const complaintCreateSchema = z.object({
     .optional(),
   issue: z
     .string()
-    .min(5, 'Issue must be at least 5 characters')
+    .min(1, 'Issue is required')
     .max(200, 'Issue must be less than 200 characters'),
   description: z
     .string()
@@ -219,14 +214,13 @@ export const complaintCreateSchema = z.object({
     .optional(),
   mobileNumber: z
     .string()
-    .regex(/^\+?[\d\s\-()]{10,15}$/, 'Invalid phone number format')
-    .optional()
-    .or(z.literal('')),
+    .max(20, 'Mobile number must be less than 20 characters')
+    .optional(),
   attachments: z
     .string()
     .max(2000, 'Attachments must be less than 2000 characters')
     .optional(),
-  priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']).default('MEDIUM'),
+  priority: z.string().default('MEDIUM'),
   ticket: z
     .string()
     .max(50, 'Ticket must be less than 50 characters')
@@ -268,9 +262,8 @@ export const repossessionCreateSchema = z.object({
     .optional(),
   mobileNumber: z
     .string()
-    .regex(/^\+?[\d\s\-()]{10,15}$/, 'Invalid phone number format')
-    .optional()
-    .or(z.literal('')),
+    .max(20, 'Mobile number must be less than 20 characters')
+    .optional(),
   components: z
     .string()
     .max(1000, 'Components must be less than 1000 characters')
@@ -315,9 +308,8 @@ export const redeploymentCreateSchema = z.object({
     .optional(),
   mobileNumber: z
     .string()
-    .regex(/^\+?[\d\s\-()]{10,15}$/, 'Invalid phone number format')
-    .optional()
-    .or(z.literal('')),
+    .max(20, 'Mobile number must be less than 20 characters')
+    .optional(),
   sourcePod: z
     .string()
     .max(200, 'Source POD must be less than 200 characters')
