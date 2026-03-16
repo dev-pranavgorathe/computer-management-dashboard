@@ -149,8 +149,10 @@ export async function PUT(
           ...(data.remarks !== undefined && { remarks: data.remarks }),
           ...(data.attachments !== undefined && { attachments: data.attachments }),
           ...(data.solvedDate !== undefined && { solvedDate: data.solvedDate }),
+          ...(body.resolutionMethod !== undefined && { resolutionMethod: body.resolutionMethod || null }),
           ...(body.mailSent !== undefined && { mailSent: body.mailSent }),
           ...(body.mailSentAt !== undefined && { mailSentAt: body.mailSentAt ? new Date(body.mailSentAt) : null }),
+          ...(body.ticket !== undefined && { ticket: body.ticket || null }),
         },
         include: {
           user: {

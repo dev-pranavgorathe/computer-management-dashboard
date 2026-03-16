@@ -204,6 +204,8 @@ export async function PUT(
         data: {
           ...(data.podName && { podName: data.podName }),
           ...(data.shippingAddress && { shippingAddress: data.shippingAddress }),
+          ...(data.state !== undefined && { state: data.state || null }),
+          ...(data.pincode !== undefined && { pincode: data.pincode || null }),
           ...(data.contactPerson && { contactPerson: data.contactPerson }),
           ...(data.mobileNumber && { mobileNumber: data.mobileNumber }),
           ...(data.cpus && { cpus: data.cpus }),
@@ -212,6 +214,7 @@ export async function PUT(
           ...(data.trackingId !== undefined && { trackingId: data.trackingId }),
           ...(data.qcReport !== undefined && { qcReport: data.qcReport }),
           ...(data.signedQc !== undefined && { signedQc: data.signedQc }),
+          ...(data.additionalDocs !== undefined && { additionalDocs: data.additionalDocs || null }),
           ...(data.purpose && { purpose: data.purpose }),
           ...(data.mailSent !== undefined && { mailSent: data.mailSent }),
           ...(data.mailSentAt !== undefined && { mailSentAt: data.mailSentAt }),

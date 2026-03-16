@@ -97,6 +97,8 @@ model Shipment {
   refId           String   @unique // "SHP-001"
   podName         String
   shippingAddress String
+  state           String?  // State/Region (auto-filled or manual)
+  pincode         String?  // Pincode
   contactPerson   String
   mobileNumber    String
   
@@ -107,7 +109,8 @@ model Shipment {
   trackingId      String?  // Vendor tracking reference
   qcReport        String?  // QC report filename (from vendor)
   signedQc        String?  // Signed QC report filename (required for Completed)
-  purpose         String?  // Purpose: NEW_SETUP | REPLACEMENT | UPGRADE | RELOCATION | OTHER
+  additionalDocs  String?  // Additional document filenames (comma-separated)
+  purpose         String?  // Purpose: NEW_POD | MANTHAN_POD | TEACH_TO_EARN | PERIPHERALS | OTHER
   
   orderDate       DateTime
   dispatchDate    DateTime?
@@ -142,12 +145,14 @@ model Shipment {
   @@index([orderDate])
   @@index([isDeleted])
   @@index([refId])
+  @@index([state])
+  @@index([pincode])
 }
 
 model Complaint {
   id            String   @id @default(cuid())
   refId         String   @unique // "CMP-001"
-  ticket        String   @unique // "TKT-XXXX" auto-generated
+  ticket        String?  // "TKT-XXXX" - manually entered or N/A
   
   // PRD fields
   podName       String
@@ -161,8 +166,9 @@ model Complaint {
   reportedDate  DateTime @default(now())
   solvedDate    DateTime?
   resolution    String?
+  resolutionMethod String? // Repaired | Replaced (Under Warranty) | Replaced (Out of Warranty) | Redeployment | Other
   remarks       String?
-  attachments   String?  // Comma-separated filenames
+  attachments   String?  // Comma-separated filenames or URLs
   
   // Status: OPEN | IN_PROGRESS | SOLVED
   status        String   @default("OPEN")
@@ -185,12 +191,13 @@ model Complaint {
   @@index([isDeleted])
   @@index([refId])
   @@index([ticket])
+  @@index([resolutionMethod])
 }
 
 model Repossession {
   id            String   @id @default(cuid())
   refId         String   @unique // "REP-001"
-  ticket        String   @unique // "TKT-XXXX" auto-generated
+  ticket        String?  // Manually entered ticket number (optional)
   
   // PRD fields
   podName       String
@@ -230,10 +237,10 @@ model Redeployment {
   shippingAddress String?
   contactPerson  String?
   mobileNumber   String?
-  sourcePod      String?  // Source POD
+  sourcePod      String?  // Source POD (filled after vendor dispatch)
   components     String?
   serials        String?
-  complaintTicket String? // Linked complaint ticket for traceability
+  complaintTicket String? // Linked complaint ticket for traceability (optional, can be N/A)
   trackingId     String?
   orderDate      DateTime @default(now())
   dispatchDate   DateTime?
@@ -256,6 +263,7 @@ model Redeployment {
   @@index([status])
   @@index([isDeleted])
   @@index([refId])
+  @@index([complaintTicket])
 }
 
 model AuditLog {

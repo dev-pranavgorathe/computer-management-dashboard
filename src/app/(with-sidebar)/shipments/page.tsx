@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Search, Filter, Plus, Eye, Edit, Truck, Download, Loader2, Trash2, Mail } from 'lucide-react'
+import { Search, Filter, Plus, Eye, Edit, Truck, Download, Loader2, Trash2, Mail, Upload, X } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { exportToCSV, exportToExcel, formatDate, formatCurrency } from '@/lib/export'
 import StatusPipeline, { StatusBadge, SHIPMENT_PIPELINE } from '@/components/StatusPipeline'
@@ -16,6 +16,8 @@ interface Shipment {
   refId: string
   podName: string
   shippingAddress: string
+  state?: string | null
+  pincode?: string | null
   contactPerson: string
   mobileNumber: string
   cpus: number
@@ -24,6 +26,7 @@ interface Shipment {
   trackingId: string | null
   qcReport: string | null
   signedQc: string | null
+  additionalDocs: string | null
   purpose: string | null
   mailSent: boolean
   mailSentAt: string | null
@@ -42,14 +45,18 @@ interface Shipment {
 interface FormData {
   podName: string
   shippingAddress: string
+  state: string
+  pincode: string
   contactPerson: string
   mobileNumber: string
   cpus: string
   purpose: string
+  customPurpose: string
   serials: string
   trackingId: string
   qcReport: string
   signedQc: string
+  additionalDocs: string
   orderDate: string
   dispatchDate: string
   deliveryDate: string
@@ -63,14 +70,18 @@ interface FormData {
 const initialFormData: FormData = {
   podName: '',
   shippingAddress: '',
+  state: '',
+  pincode: '',
   contactPerson: '',
   mobileNumber: '+91 ',
   cpus: '1',
-  purpose: 'NEW_SETUP',
+  purpose: 'NEW_POD',
+  customPurpose: '',
   serials: '',
   trackingId: '',
   qcReport: '',
   signedQc: '',
+  additionalDocs: '',
   orderDate: new Date().toISOString().split('T')[0],
   dispatchDate: '',
   deliveryDate: '',
@@ -82,12 +93,23 @@ const initialFormData: FormData = {
 }
 
 const statusOptions = ['PENDING', 'ORDER_SENT', 'DISPATCHED', 'IN_TRANSIT', 'DELIVERED', 'COMPLETED']
-const purposeOptions = [
-  { value: 'NEW_SETUP', label: 'New Setup' },
-  { value: 'REPLACEMENT', label: 'Replacement' },
-  { value: 'UPGRADE', label: 'Upgrade' },
-  { value: 'RELOCATION', label: 'Relocation' },
+
+const defaultPurposes = [
+  { value: 'NEW_POD', label: 'New POD' },
+  { value: 'MANTHAN_POD', label: 'Manthan POD' },
+  { value: 'TEACH_TO_EARN', label: 'Teach to Earn' },
+  { value: 'PERIPHERALS', label: 'Peripherals' },
   { value: 'OTHER', label: 'Other' },
+]
+
+const indianStates = [
+  'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
+  'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand',
+  'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur',
+  'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab',
+  'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura',
+  'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
+  'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Puducherry',
 ]
 
 function formatStatus(status: string) {
@@ -96,8 +118,32 @@ function formatStatus(status: string) {
 
 function formatPurpose(purpose: string | null) {
   if (!purpose) return '-'
-  const found = purposeOptions.find(p => p.value === purpose)
+  const found = defaultPurposes.find(p => p.value === purpose)
   return found ? found.label : purpose
+}
+
+// Pincode to State mapping (simplified)
+function getStateFromPincode(pincode: string): string | null {
+  const code = parseInt(pincode.substring(0, 2))
+  const stateMap: Record<number, string> = {
+    11: 'Delhi', 12: 'Haryana', 13: 'Punjab', 14: 'Punjab', 15: 'Punjab',
+    16: 'Chandigarh', 17: 'Himachal Pradesh', 18: 'Jammu and Kashmir', 19: 'Jammu and Kashmir',
+    20: 'Uttar Pradesh', 21: 'Uttar Pradesh', 22: 'Uttar Pradesh', 23: 'Uttar Pradesh', 24: 'Uttar Pradesh', 25: 'Uttar Pradesh', 26: 'Uttar Pradesh', 27: 'Uttar Pradesh', 28: 'Uttar Pradesh',
+    30: 'Rajasthan', 31: 'Rajasthan', 32: 'Rajasthan', 33: 'Rajasthan', 34: 'Rajasthan',
+    36: 'Gujarat', 37: 'Gujarat', 38: 'Gujarat', 39: 'Gujarat',
+    40: 'Maharashtra', 41: 'Maharashtra', 42: 'Maharashtra', 43: 'Maharashtra', 44: 'Maharashtra',
+    45: 'Madhya Pradesh', 46: 'Madhya Pradesh', 47: 'Madhya Pradesh', 48: 'Madhya Pradesh', 49: 'Madhya Pradesh',
+    50: 'Telangana', 51: 'Telangana', 52: 'Telangana', 53: 'Telangana',
+    56: 'Karnataka', 57: 'Karnataka', 58: 'Karnataka', 59: 'Karnataka',
+    60: 'Tamil Nadu', 61: 'Tamil Nadu', 62: 'Tamil Nadu', 63: 'Tamil Nadu', 64: 'Tamil Nadu',
+    67: 'Kerala', 68: 'Kerala', 69: 'Kerala',
+    70: 'West Bengal', 71: 'West Bengal', 72: 'West Bengal', 73: 'West Bengal', 74: 'West Bengal',
+    75: 'Odisha', 76: 'Odisha', 77: 'Odisha',
+    78: 'Assam', 79: 'Assam',
+    80: 'Bihar', 81: 'Bihar', 82: 'Bihar', 83: 'Bihar', 84: 'Bihar', 85: 'Bihar',
+    7: 'West Bengal', 8: 'Bihar',
+  }
+  return stateMap[code] || null
 }
 
 export default function ShipmentsPage() {
@@ -115,10 +161,11 @@ export default function ShipmentsPage() {
   const [showFilterPanel, setShowFilterPanel] = useState(false)
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null)
   const [editingShipment, setEditingShipment] = useState<Shipment | null>(null)
-  const [formData, setFormData] = useState<FormData>(initialFormData)
+  const [formData, setFormData] = useState<FormData>({ ...initialFormData, mobileNumber: '+91 ' })
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
   const [sendingMail, setSendingMail] = useState(false)
+  const [customPurposes, setCustomPurposes] = useState<string[]>([])
 
   const fetchShipments = async () => {
     try {
@@ -133,7 +180,7 @@ export default function ShipmentsPage() {
       if (dateRange.from) params.append('dateFrom', dateRange.from)
       if (dateRange.to) params.append('dateTo', dateRange.to)
 
-      const response = await fetch(`/api/shipments?${params.toString()}`)
+      const response = await fetch(`/api/shipments?${params.toString()}`, { cache: 'no-store' })
       if (!response.ok) throw new Error('Failed to fetch shipments')
 
       const data = await response.json()
@@ -171,6 +218,14 @@ export default function ShipmentsPage() {
     if (formErrors[name]) {
       setFormErrors(prev => ({ ...prev, [name]: '' }))
     }
+    
+    // Auto-fill state from pincode
+    if (name === 'pincode' && value.length === 6) {
+      const detectedState = getStateFromPincode(value)
+      if (detectedState && !formData.state) {
+        setFormData(prev => ({ ...prev, state: detectedState }))
+      }
+    }
   }
 
   const validateForm = () => {
@@ -184,6 +239,7 @@ export default function ShipmentsPage() {
     else if (!/^\+?[\d\s\-()]{10,15}$/.test(formData.mobileNumber)) errors.mobileNumber = 'Invalid phone format'
     if (!formData.cpus || parseInt(formData.cpus) <= 0) errors.cpus = 'CPU count is required'
     if (!formData.orderDate) errors.orderDate = 'Order date is required'
+    if (formData.pincode && !/^\d{6}$/.test(formData.pincode)) errors.pincode = 'Pincode must be 6 digits'
 
     setFormErrors(errors)
     return Object.keys(errors).length === 0
@@ -195,6 +251,11 @@ export default function ShipmentsPage() {
 
     try {
       setSubmitting(true)
+      
+      // If custom purpose is selected and customPurpose is provided, use that
+      const finalPurpose = formData.purpose === 'OTHER' && formData.customPurpose 
+        ? formData.customPurpose.toUpperCase().replace(/\s+/g, '_')
+        : formData.purpose
 
       const response = await fetch(editingShipment ? `/api/shipments/${editingShipment.id}` : '/api/shipments', {
         method: editingShipment ? 'PUT' : 'POST',
@@ -202,14 +263,17 @@ export default function ShipmentsPage() {
         body: JSON.stringify({
           podName: formData.podName,
           shippingAddress: formData.shippingAddress,
+          state: formData.state || null,
+          pincode: formData.pincode || null,
           contactPerson: formData.contactPerson,
           mobileNumber: formData.mobileNumber,
           cpus: parseInt(formData.cpus) || 1,
-          purpose: formData.purpose || 'OTHER',
+          purpose: finalPurpose || 'OTHER',
           serials: formData.serials || null,
           trackingId: formData.trackingId || null,
           qcReport: formData.qcReport || null,
           signedQc: formData.signedQc || null,
+          additionalDocs: formData.additionalDocs || null,
           orderDate: formData.orderDate,
           dispatchDate: formData.dispatchDate || null,
           deliveryDate: formData.deliveryDate || null,
@@ -235,14 +299,22 @@ export default function ShipmentsPage() {
       }
 
       const savedShipment = await response.json()
-      setFormData(initialFormData)
+      
+      // Add custom purpose to list if it's new
+      if (formData.purpose === 'OTHER' && formData.customPurpose) {
+        const newPurposeValue = formData.customPurpose.toUpperCase().replace(/\s+/g, '_')
+        if (!customPurposes.includes(newPurposeValue)) {
+          setCustomPurposes(prev => [...prev, newPurposeValue])
+        }
+      }
+      
+      setFormData({ ...initialFormData, mobileNumber: '+91 ' })
       setFormErrors({})
       setShowAddModal(false)
       setEditingShipment(null)
       await fetchShipments()
       toast.success(editingShipment ? 'Shipment updated successfully' : 'Shipment created successfully')
       
-      // Select the newly created/updated shipment
       if (savedShipment) {
         setSelectedShipment(savedShipment)
       }
@@ -266,14 +338,18 @@ export default function ShipmentsPage() {
     setFormData({
       podName: shipment.podName,
       shippingAddress: shipment.shippingAddress,
+      state: shipment.state || '',
+      pincode: shipment.pincode || '',
       contactPerson: shipment.contactPerson,
       mobileNumber: shipment.mobileNumber,
       cpus: String(shipment.cpus),
-      purpose: shipment.purpose || 'OTHER',
+      purpose: shipment.purpose || 'NEW_POD',
+      customPurpose: '',
       serials: shipment.serials || '',
       trackingId: shipment.trackingId || '',
       qcReport: shipment.qcReport || '',
       signedQc: shipment.signedQc || '',
+      additionalDocs: shipment.additionalDocs || '',
       orderDate: shipment.orderDate.split('T')[0],
       dispatchDate: shipment.dispatchDate ? shipment.dispatchDate.split('T')[0] : '',
       deliveryDate: shipment.deliveryDate ? shipment.deliveryDate.split('T')[0] : '',
@@ -352,7 +428,6 @@ export default function ShipmentsPage() {
 
     try {
       setSendingMail(true)
-      // Update shipment with mailSent = true and status = ORDER_SENT
       const response = await fetch(`/api/shipments/${shipment.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -381,13 +456,14 @@ export default function ShipmentsPage() {
   }
 
   const handlePreviewMail = (shipment: Shipment) => {
-    // Show mail preview in an alert for now (can be enhanced to a modal)
     const mailContent = `
 Order Email Preview
 ==================
 Ref ID: ${shipment.refId}
 POD Name: ${shipment.podName}
 Shipping Address: ${shipment.shippingAddress}
+State: ${shipment.state || 'N/A'}
+Pincode: ${shipment.pincode || 'N/A'}
 Contact Person: ${shipment.contactPerson}
 Mobile: ${shipment.mobileNumber}
 CPUs: ${shipment.cpus}
@@ -400,10 +476,17 @@ Notes: ${shipment.notes || 'N/A'}
   }
 
   const canShowMailButtons = (shipment: Shipment) => {
-    // Show mail buttons only if:
-    // 1. Status is PENDING or ORDER_SENT
-    // 2. Mail hasn't been sent yet
     return (shipment.status === 'PENDING' || shipment.status === 'ORDER_SENT') && !shipment.mailSent
+  }
+
+  const getAllPurposes = () => {
+    const allPurposes = [...defaultPurposes]
+    customPurposes.forEach(cp => {
+      if (!allPurposes.find(p => p.value === cp)) {
+        allPurposes.push({ value: cp, label: cp.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, c => c.toUpperCase()) })
+      }
+    })
+    return allPurposes
   }
 
   const exportRows = shipments.map(shipment => ({
@@ -411,7 +494,8 @@ Notes: ${shipment.notes || 'N/A'}
     'POD Name': shipment.podName,
     CPUs: shipment.cpus,
     Purpose: formatPurpose(shipment.purpose),
-    Components: shipment.components || '',
+    State: shipment.state || '',
+    Pincode: shipment.pincode || '',
     'Contact Person': shipment.contactPerson,
     'Mobile Number': shipment.mobileNumber,
     'Tracking ID': shipment.trackingId || '',
@@ -525,12 +609,13 @@ Notes: ${shipment.notes || 'N/A'}
                 <table className="w-full">
                   <thead className="border-b border-gray-200 bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Ref ID</th>
                       <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">POD Name</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">CPUs</th>
                       <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Purpose</th>
                       <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Contact</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">CPUs</th>
                       <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Order Date</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Dispatch Date</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Delivery Date</th>
                       <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Status</th>
                       <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Actions</th>
                     </tr>
@@ -538,20 +623,13 @@ Notes: ${shipment.notes || 'N/A'}
                   <tbody className="divide-y divide-gray-200">
                     {shipments.map(shipment => (
                       <tr key={shipment.id} className="hover:bg-gray-50">
-                        <td className="whitespace-nowrap px-6 py-4">
-                          <span className="font-mono text-sm text-gray-900">{shipment.refId}</span>
-                        </td>
                         <td className="px-6 py-4">
                           <div>
                             <div className="font-medium text-gray-900">{shipment.podName}</div>
-                            <div className="max-w-xs truncate text-sm text-gray-500">{shipment.shippingAddress}</div>
+                            <div className="text-sm text-gray-500">{shipment.state || '-'} {shipment.pincode || ''}</div>
                           </div>
                         </td>
-                        <td className="whitespace-nowrap px-6 py-4">
-                          <span className="font-semibold text-gray-900">{shipment.cpus}</span>
-                          <span className="ml-1 text-sm text-gray-500">PCs</span>
-                        </td>
-                        <td className="whitespace-nowrap px-6 py-4">
+                        <td className="px-6 py-4">
                           <span className="text-gray-700">{formatPurpose(shipment.purpose)}</span>
                         </td>
                         <td className="px-6 py-4">
@@ -560,7 +638,13 @@ Notes: ${shipment.notes || 'N/A'}
                             <div className="text-sm text-gray-500">{shipment.mobileNumber}</div>
                           </div>
                         </td>
+                        <td className="whitespace-nowrap px-6 py-4">
+                          <span className="font-semibold text-gray-900">{shipment.cpus}</span>
+                          <span className="ml-1 text-sm text-gray-500">PCs</span>
+                        </td>
                         <td className="whitespace-nowrap px-6 py-4 text-gray-500">{formatDate(shipment.orderDate)}</td>
+                        <td className="whitespace-nowrap px-6 py-4 text-gray-500">{formatDate(shipment.dispatchDate)}</td>
+                        <td className="whitespace-nowrap px-6 py-4 text-gray-500">{formatDate(shipment.deliveryDate)}</td>
                         <td className="whitespace-nowrap px-6 py-4">
                           <StatusBadge status={shipment.status} />
                           {shipment.mailSent && (
@@ -630,9 +714,12 @@ Notes: ${shipment.notes || 'N/A'}
 
       {showAddModal ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white">
+          <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-xl bg-white">
             <div className="border-b border-gray-200 p-6">
               <h2 className="text-xl font-semibold text-gray-900">{editingShipment ? 'Edit Shipment' : 'Add New Shipment'}</h2>
+              <p className="text-sm text-gray-500 mt-1">
+                {editingShipment ? 'Update shipment details' : 'Required fields: POD Name, Address, State, Pincode, Contact, Mobile, Purpose, Order Date, CPUs'}
+              </p>
             </div>
             <form onSubmit={handleSubmit} className="space-y-4 p-6">
               {formErrors.submit ? (
@@ -650,32 +737,6 @@ Notes: ${shipment.notes || 'N/A'}
                     autoComplete="off"
                   />
                   {formErrors.podName ? <p className="mt-1 text-xs text-red-500">{formErrors.podName}</p> : null}
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">CPU Count <span className="text-red-500">*</span></label>
-                  <input 
-                    type="number" 
-                    min="1" 
-                    name="cpus" 
-                    value={formData.cpus} 
-                    onChange={handleInputChange} 
-                    className={`w-full rounded-lg border px-3 py-2 ${formErrors.cpus ? 'border-red-500' : 'border-gray-200'}`}
-                    autoComplete="off"
-                  />
-                  {formErrors.cpus ? <p className="mt-1 text-xs text-red-500">{formErrors.cpus}</p> : <p className="mt-1 text-xs text-gray-500">Components will be auto-generated</p>}
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">Purpose <span className="text-red-500">*</span></label>
-                  <select
-                    name="purpose"
-                    value={formData.purpose}
-                    onChange={handleInputChange}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2"
-                  >
-                    {purposeOptions.map(opt => (
-                      <option key={opt.value} value={opt.value}>{opt.label}</option>
-                    ))}
-                  </select>
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">Contact Person <span className="text-red-500">*</span></label>
@@ -701,6 +762,73 @@ Notes: ${shipment.notes || 'N/A'}
                   {formErrors.mobileNumber ? <p className="mt-1 text-xs text-red-500">{formErrors.mobileNumber}</p> : null}
                 </div>
                 <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Pincode</label>
+                  <input 
+                    name="pincode" 
+                    value={formData.pincode} 
+                    onChange={handleInputChange} 
+                    className={`w-full rounded-lg border px-3 py-2 ${formErrors.pincode ? 'border-red-500' : 'border-gray-200'}`}
+                    placeholder="6-digit pincode"
+                    maxLength={6}
+                    autoComplete="off"
+                  />
+                  {formErrors.pincode ? <p className="mt-1 text-xs text-red-500">{formErrors.pincode}</p> : 
+                   <p className="mt-1 text-xs text-gray-500">State will auto-fill from pincode</p>}
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">State</label>
+                  <select
+                    name="state"
+                    value={formData.state}
+                    onChange={handleInputChange}
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                  >
+                    <option value="">Select State</option>
+                    {indianStates.map(state => (
+                      <option key={state} value={state}>{state}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Purpose <span className="text-red-500">*</span></label>
+                  <select
+                    name="purpose"
+                    value={formData.purpose}
+                    onChange={handleInputChange}
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                  >
+                    {getAllPurposes().map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+                {formData.purpose === 'OTHER' && (
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">Custom Purpose</label>
+                    <input 
+                      name="customPurpose" 
+                      value={formData.customPurpose} 
+                      onChange={handleInputChange} 
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                      placeholder="Enter custom purpose"
+                      autoComplete="off"
+                    />
+                  </div>
+                )}
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">CPU Count <span className="text-red-500">*</span></label>
+                  <input 
+                    type="number" 
+                    min="1" 
+                    name="cpus" 
+                    value={formData.cpus} 
+                    onChange={handleInputChange} 
+                    className={`w-full rounded-lg border px-3 py-2 ${formErrors.cpus ? 'border-red-500' : 'border-gray-200'}`}
+                    autoComplete="off"
+                  />
+                  {formErrors.cpus ? <p className="mt-1 text-xs text-red-500">{formErrors.cpus}</p> : <p className="mt-1 text-xs text-gray-500">Components will be auto-generated</p>}
+                </div>
+                <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">Order Date <span className="text-red-500">*</span></label>
                   <input 
                     type="date" 
@@ -712,22 +840,10 @@ Notes: ${shipment.notes || 'N/A'}
                   />
                   {formErrors.orderDate ? <p className="mt-1 text-xs text-red-500">{formErrors.orderDate}</p> : null}
                 </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">Total Cost</label>
-                  <input 
-                    type="number" 
-                    name="totalCost" 
-                    value={formData.totalCost} 
-                    onChange={handleInputChange} 
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2" 
-                    placeholder="0"
-                    autoComplete="off"
-                  />
-                </div>
               </div>
 
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">Shipping Address <span className="text-red-500">*</span></label>
+                <label className="mb-1 block text-sm font-medium text-gray-700">POD Address <span className="text-red-500">*</span></label>
                 <textarea 
                   name="shippingAddress" 
                   value={formData.shippingAddress} 
@@ -739,84 +855,97 @@ Notes: ${shipment.notes || 'N/A'}
                 {formErrors.shippingAddress ? <p className="mt-1 text-xs text-red-500">{formErrors.shippingAddress}</p> : null}
               </div>
 
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">Serial Numbers</label>
-                  <input 
-                    name="serials" 
-                    value={formData.serials} 
-                    onChange={handleInputChange} 
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2"
-                    autoComplete="off"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">Tracking ID</label>
-                  <input 
-                    name="trackingId" 
-                    value={formData.trackingId} 
-                    onChange={handleInputChange} 
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2"
-                    autoComplete="off"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">QC Report</label>
-                  <input 
-                    name="qcReport" 
-                    value={formData.qcReport} 
-                    onChange={handleInputChange} 
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2"
-                    autoComplete="off"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">Signed QC</label>
-                  <input 
-                    name="signedQc" 
-                    value={formData.signedQc} 
-                    onChange={handleInputChange} 
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2"
-                    autoComplete="off"
-                  />
-                </div>
-              </div>
+              {/* Additional fields for editing */}
+              {editingShipment && (
+                <>
+                  <div className="border-t border-gray-200 pt-4">
+                    <h3 className="mb-3 text-sm font-medium text-gray-700">Dispatch Details (Optional)</h3>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <div>
+                        <label className="mb-1 block text-sm font-medium text-gray-700">Dispatch Date</label>
+                        <input 
+                          type="date" 
+                          name="dispatchDate" 
+                          value={formData.dispatchDate} 
+                          onChange={handleInputChange} 
+                          className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                          autoComplete="off"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-sm font-medium text-gray-700">Delivery Date</label>
+                        <input 
+                          type="date" 
+                          name="deliveryDate" 
+                          value={formData.deliveryDate} 
+                          onChange={handleInputChange} 
+                          className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                          autoComplete="off"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-sm font-medium text-gray-700">Tracking ID</label>
+                        <input 
+                          name="trackingId" 
+                          value={formData.trackingId} 
+                          onChange={handleInputChange} 
+                          className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                          autoComplete="off"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-sm font-medium text-gray-700">Serial Numbers</label>
+                        <input 
+                          name="serials" 
+                          value={formData.serials} 
+                          onChange={handleInputChange} 
+                          className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                          autoComplete="off"
+                        />
+                      </div>
+                    </div>
+                  </div>
 
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">Owner User ID</label>
-                  <input 
-                    name="ownerId" 
-                    value={formData.ownerId} 
-                    onChange={handleInputChange} 
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2" 
-                    placeholder="cuid (optional)"
-                    autoComplete="off"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">Team</label>
-                  <input 
-                    name="team" 
-                    value={formData.team} 
-                    onChange={handleInputChange} 
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2" 
-                    placeholder="Ops / Support"
-                    autoComplete="off"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">Location</label>
-                  <input 
-                    name="location" 
-                    value={formData.location} 
-                    onChange={handleInputChange} 
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2" 
-                    placeholder="City / Zone"
-                    autoComplete="off"
-                  />
-                </div>
-              </div>
+                  <div className="border-t border-gray-200 pt-4">
+                    <h3 className="mb-3 text-sm font-medium text-gray-700">Documents (Optional)</h3>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <div>
+                        <label className="mb-1 block text-sm font-medium text-gray-700">QC Report</label>
+                        <input 
+                          name="qcReport" 
+                          value={formData.qcReport} 
+                          onChange={handleInputChange} 
+                          className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                          placeholder="Filename or URL"
+                          autoComplete="off"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-sm font-medium text-gray-700">Signed QC</label>
+                        <input 
+                          name="signedQc" 
+                          value={formData.signedQc} 
+                          onChange={handleInputChange} 
+                          className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                          placeholder="Filename or URL"
+                          autoComplete="off"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="mb-1 block text-sm font-medium text-gray-700">Additional Documents</label>
+                        <input 
+                          name="additionalDocs" 
+                          value={formData.additionalDocs} 
+                          onChange={handleInputChange} 
+                          className="w-full rounded-lg border border-gray-200 px-3 py-2"
+                          placeholder="Comma-separated filenames or URLs"
+                          autoComplete="off"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
 
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-700">Notes</label>
@@ -836,7 +965,7 @@ Notes: ${shipment.notes || 'N/A'}
                   onClick={() => {
                     setShowAddModal(false)
                     setEditingShipment(null)
-                    setFormData(initialFormData)
+                    setFormData({ ...initialFormData, mobileNumber: '+91 ' })
                     setFormErrors({})
                   }}
                   className="rounded-lg border border-gray-200 px-4 py-2 text-gray-600 hover:bg-gray-50"
@@ -905,21 +1034,23 @@ Notes: ${shipment.notes || 'N/A'}
               fullWidth: true,
             },
             { label: 'POD Name', value: selectedShipment.podName },
-            { label: 'CPUs', value: selectedShipment.cpus },
             { label: 'Purpose', value: formatPurpose(selectedShipment.purpose) },
+            { label: 'CPUs', value: selectedShipment.cpus },
             { label: 'Contact Person', value: selectedShipment.contactPerson },
             { label: 'Mobile', value: selectedShipment.mobileNumber },
             { label: 'Address', value: selectedShipment.shippingAddress, fullWidth: true },
+            { label: 'State', value: selectedShipment.state || '-' },
+            { label: 'Pincode', value: selectedShipment.pincode || '-' },
             { label: 'Order Date', value: formatDate(selectedShipment.orderDate) },
+            { label: 'Dispatch Date', value: formatDate(selectedShipment.dispatchDate) },
+            { label: 'Delivery Date', value: formatDate(selectedShipment.deliveryDate) },
             { label: 'Tracking ID', value: selectedShipment.trackingId || '-' },
             { label: 'Mail Sent', value: selectedShipment.mailSent ? `Yes (${formatDate(selectedShipment.mailSentAt)})` : 'No' },
-            { label: 'Approval', value: selectedShipment.approvalStatus || 'NOT_REQUIRED' },
-            { label: 'Team', value: selectedShipment.team || '-' },
-            { label: 'Location', value: selectedShipment.location || '-' },
             { label: 'Serial Numbers', value: selectedShipment.serials || '-' },
             { label: 'Components', value: selectedShipment.components || '-' },
             { label: 'QC Report', value: selectedShipment.qcReport || '-' },
             { label: 'Signed QC', value: selectedShipment.signedQc || '-' },
+            { label: 'Additional Docs', value: selectedShipment.additionalDocs || '-' },
             ...(selectedShipment.notes ? [{ label: 'Notes', value: selectedShipment.notes, fullWidth: true }] : []),
           ]}
         />

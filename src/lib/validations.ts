@@ -34,8 +34,22 @@ export const signInSchema = z.object({
 
 // PRD: Status pipeline - Pending → Order Sent → Dispatched → In Transit → Delivered → Completed
 export const SHIPMENT_STATUSES = ['PENDING', 'ORDER_SENT', 'DISPATCHED', 'IN_TRANSIT', 'DELIVERED', 'COMPLETED'] as const
-export const SHIPMENT_PURPOSES = ['NEW_SETUP', 'REPLACEMENT', 'UPGRADE', 'RELOCATION', 'OTHER'] as const
-export const SHIPMENT_PURPOSES = ['NEW_SETUP', 'REPLACEMENT', 'UPGRADE', 'RELOCATION', 'OTHER'] as const
+export const SHIPMENT_PURPOSES = ['NEW_POD', 'MANTHAN_POD', 'TEACH_TO_EARN', 'PERIPHERALS', 'OTHER'] as const
+
+// Indian states for auto-fill
+export const INDIAN_STATES = [
+  'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
+  'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand',
+  'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur',
+  'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab',
+  'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura',
+  'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
+  'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Puducherry',
+  'Andaman and Nicobar Islands', 'Chandigarh', 'Dadra and Nagar Haveli and Daman and Diu', 'Lakshadweep'
+] as const
+
+// Resolution methods for complaints
+export const RESOLUTION_METHODS = ['REPAIRED', 'REPLACED_UNDER_WARRANTY', 'REPLACED_OUT_OF_WARRANTY', 'REDEPLOYMENT', 'OTHER'] as const
 
 const shipmentBaseSchema = z.object({
   podName: z
@@ -46,6 +60,17 @@ const shipmentBaseSchema = z.object({
     .string()
     .min(10, 'Shipping address must be at least 10 characters')
     .max(500, 'Shipping address must be less than 500 characters'),
+  state: z
+    .string()
+    .max(100, 'State must be less than 100 characters')
+    .optional()
+    .nullable(),
+  pincode: z
+    .string()
+    .regex(/^\d{6}$/, 'Pincode must be 6 digits')
+    .optional()
+    .nullable()
+    .or(z.literal('')),
   contactPerson: z
     .string()
     .min(2, 'Contact person name must be at least 2 characters')
@@ -54,7 +79,6 @@ const shipmentBaseSchema = z.object({
     .string()
     .regex(/^\+?[\d\s\-()]{10,15}$/, 'Invalid phone number format')
     .transform(val => {
-      // Auto-prefix with +91 if it's a 10-digit Indian number without prefix
       const cleaned = val.replace(/[\s\-()]/g, '')
       if (/^\d{10}$/.test(cleaned)) {
         return `+91${cleaned}`
@@ -99,10 +123,17 @@ const shipmentBaseSchema = z.object({
     .optional()
     .nullable()
     .or(z.literal('')),
-  purpose: z
-    .enum(SHIPMENT_PURPOSES)
+  additionalDocs: z
+    .string()
+    .max(2000, 'Additional docs must be less than 2000 characters')
     .optional()
-    .default('NEW_SETUP'),
+    .nullable()
+    .or(z.literal('')),
+  purpose: z
+    .string()
+    .max(100, 'Purpose must be less than 100 characters')
+    .optional()
+    .default('NEW_POD'),
   mailSent: z.boolean().optional().default(false),
   
   orderDate: z
@@ -129,11 +160,9 @@ const shipmentBaseSchema = z.object({
   ownerId: z.string().cuid('Invalid owner ID').optional().nullable(),
   team: z.string().max(100, 'Team must be less than 100 characters').optional().nullable().or(z.literal('')),
   location: z.string().max(150, 'Location must be less than 150 characters').optional().nullable().or(z.literal('')),
-  purpose: z.enum(SHIPMENT_PURPOSES).optional().nullable(),
 })
 
 export const shipmentCreateSchema = shipmentBaseSchema.refine(data => {
-  // Validate date logic
   if (data.dispatchDate && data.dispatchDate < data.orderDate) {
     return false
   }
@@ -149,11 +178,14 @@ export const shipmentUpdateSchema = shipmentBaseSchema.partial().extend({
   status: z.enum(SHIPMENT_STATUSES).optional(),
   mailSent: z.boolean().optional(),
   mailSentAt: z.string().optional().nullable().transform(str => str ? new Date(str) : null),
+  purpose: z.string().max(100).optional().nullable(),
+  state: z.string().max(100).optional().nullable(),
+  pincode: z.string().optional().nullable(),
+  additionalDocs: z.string().max(2000).optional().nullable(),
 })
 
 // ==================== Complaint Validations ====================
 
-// PRD: Open → In Progress → Solved
 export const COMPLAINT_STATUSES = ['OPEN', 'IN_PROGRESS', 'SOLVED'] as const
 export const DEVICE_TYPES = ['MONITOR', 'CPU', 'KEYBOARD', 'MOUSE', 'WEBCAM', 'HEADPHONES', 'PSU', 'NETWORK_ADAPTER', 'OTHER'] as const
 
@@ -165,7 +197,7 @@ export const complaintCreateSchema = z.object({
   phase: z
     .string()
     .max(50, 'Phase must be less than 50 characters')
-    .optional(), // Optional at creation per PRD
+    .optional(),
   deviceType: z
     .enum(DEVICE_TYPES)
     .default('CPU'),
@@ -195,11 +227,17 @@ export const complaintCreateSchema = z.object({
     .max(2000, 'Attachments must be less than 2000 characters')
     .optional(),
   priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']).default('MEDIUM'),
+  ticket: z
+    .string()
+    .max(50, 'Ticket must be less than 50 characters')
+    .optional()
+    .nullable(),
 })
 
 export const complaintUpdateSchema = complaintCreateSchema.partial().extend({
   status: z.enum(COMPLAINT_STATUSES).optional(),
   resolution: z.string().max(1000).optional(),
+  resolutionMethod: z.string().max(100).optional().nullable(),
   remarks: z.string().max(1000).optional(),
   solvedDate: z
     .string()
@@ -208,11 +246,11 @@ export const complaintUpdateSchema = complaintCreateSchema.partial().extend({
     .transform(str => str ? new Date(str) : null),
   mailSent: z.boolean().optional(),
   mailSentAt: z.string().optional().nullable().transform(str => str ? new Date(str) : null),
+  ticket: z.string().max(50).optional().nullable(),
 })
 
 // ==================== Repossession Validations ====================
 
-// PRD: Pending → Collected → In Progress → Completed
 export const REPOSSESSION_STATUSES = ['PENDING', 'COLLECTED', 'IN_PROGRESS', 'COMPLETED'] as const
 
 export const repossessionCreateSchema = z.object({
@@ -241,21 +279,25 @@ export const repossessionCreateSchema = z.object({
     .string()
     .max(2000, 'Serials must be less than 2000 characters')
     .optional(),
-  notes: z.string().max(1000).optional(),
-})
-
-export const repossessionUpdateSchema = repossessionCreateSchema.partial().extend({
-  status: z.enum(REPOSSESSION_STATUSES).optional(),
   reshippedDate: z
     .string()
     .optional()
     .nullable()
     .transform(str => str ? new Date(str) : null),
+  notes: z.string().max(1000).optional(),
+  ticket: z
+    .string()
+    .max(50, 'Ticket must be less than 50 characters')
+    .optional()
+    .nullable(),
+})
+
+export const repossessionUpdateSchema = repossessionCreateSchema.partial().extend({
+  status: z.enum(REPOSSESSION_STATUSES).optional(),
 })
 
 // ==================== Redeployment Validations ====================
 
-// PRD: Pending → Order Sent → In Transit → Delivered → Completed
 export const REDEPLOYMENT_STATUSES = ['PENDING', 'ORDER_SENT', 'IN_TRANSIT', 'DELIVERED', 'COMPLETED'] as const
 
 export const redeploymentCreateSchema = z.object({
@@ -291,7 +333,8 @@ export const redeploymentCreateSchema = z.object({
   complaintTicket: z
     .string()
     .max(50, 'Complaint ticket must be less than 50 characters')
-    .optional(),
+    .optional()
+    .nullable(),
   trackingId: z
     .string()
     .max(100, 'Tracking ID must be less than 100 characters')
@@ -300,11 +343,6 @@ export const redeploymentCreateSchema = z.object({
     .string()
     .optional()
     .transform(str => str ? new Date(str) : new Date()),
-  notes: z.string().max(1000).optional(),
-})
-
-export const redeploymentUpdateSchema = redeploymentCreateSchema.partial().extend({
-  status: z.enum(REDEPLOYMENT_STATUSES).optional(),
   dispatchDate: z
     .string()
     .optional()
@@ -315,6 +353,11 @@ export const redeploymentUpdateSchema = redeploymentCreateSchema.partial().exten
     .optional()
     .nullable()
     .transform(str => str ? new Date(str) : null),
+  notes: z.string().max(1000).optional(),
+})
+
+export const redeploymentUpdateSchema = redeploymentCreateSchema.partial().extend({
+  status: z.enum(REDEPLOYMENT_STATUSES).optional(),
 })
 
 // ==================== Query Validations ====================
