@@ -10,7 +10,7 @@ interface Column {
   align?: 'left' | 'right'
 }
 
- const TableProps = {
+interface TableProps {
   headers?: ReactNode[]
   data: any[]
   loading?: boolean
