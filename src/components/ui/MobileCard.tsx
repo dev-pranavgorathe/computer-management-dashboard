@@ -1,5 +1,5 @@
 import React from 'react'
-import { ChevronRight } ChevronLeft } ChevronUp, Home, from 'lucide-react'
+import { ChevronRight, ChevronLeft, ChevronUp, Home } from 'lucide-react'
 
 interface BreadcrumbItem {
   label: string
