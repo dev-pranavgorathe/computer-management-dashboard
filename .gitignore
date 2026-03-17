@@ -44,3 +44,7 @@ next-env.d.ts
 Thumbs.db
 
 /generated/prisma
+
+# Ignore local database files
+*.db
+*.db-journal
