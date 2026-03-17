@@ -105,36 +105,38 @@ export default function MobileBottomNav() {
             </div>
             
             <div className="p-2 space-y-1">
-              {navItems.filter(item => item.href.startsWith('#') || item.href === '/audit-logs' || item.href === '/permissions').map((item) => {
-                const Icon = item.icon
-                const isSpecial = item.href === '#logout' || item.href === '#more'
-                return (
-                  <button
-                    key={item.name}
-                    onClick={() => {
-                      if (item.href === '#logout') {
-                        handleLogout()
-                      }
-                      setIsOpen(false)
-                    }}
-                    className={`flex items-center gap-3 w-full px-4 py-3 rounded-lg transition-colors ${
-                      isSpecial 
-                        ? 'text-red-600 hover:bg-red-50' 
-                        : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    <Icon className="h-5 w-5" />
-                    <span className="text-sm">{item.name}</span>
-                    {item.badge && (
-                      <span className="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">
-                        {item.badge}
-                      </span>
-                    )}
-                  </button>
-                )
-              })}
+              {navItems
+                .filter(item => item.href.startsWith('#') || item.href === '/audit-logs' || item.href === '/permissions')
+                .map((item) => {
+                  const Icon = item.icon
+                  const isSpecial = item.href === '#logout' || item.href === '#more'
+                  return (
+                    <button
+                      key={item.name}
+                      onClick={() => {
+                        if (item.href === '#logout') {
+                          handleLogout()
+                        }
+                        setIsOpen(false)
+                      }}
+                      className={`flex items-center gap-3 w-full px-4 py-3 rounded-lg transition-colors ${
+                        isSpecial 
+                          ? 'text-red-600 hover:bg-red-50' 
+                          : 'text-gray-700 hover:bg-gray-100'
+                      }`}
+                    >
+                      <Icon className="h-5 w-5" />
+                      <span className="text-sm">{item.name}</span>
+                      {item.badge && (
+                        <span className="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                          {item.badge}
+                        </span>
+                      )}
+                    </button>
+                  )
+                })}
             </div>
-          </>
+          </div>
         </>
       )}
     </>
