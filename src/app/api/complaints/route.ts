@@ -167,6 +167,14 @@ export async function POST(request: NextRequest) {
 
       const data = validationResult.data
 
+      if (!data.podName || !data.podName.trim()) {
+        return NextResponse.json(
+          { error: 'Validation failed', details: [{ field: 'podName', message: 'POD Name is required' }] },
+          { status: 400 }
+        )
+      }
+      const podName = data.podName.trim()
+
       // Generate IDs
       const refId = await generateComplaintRefId()
       const ticket = await generateTicketNumber()
@@ -176,7 +184,7 @@ export async function POST(request: NextRequest) {
         data: {
           refId,
           ticket,
-          podName: data.podName,
+          podName,
           phase: data.phase, // Optional per PRD
           deviceType: data.deviceType || 'CPU',
           deviceSerial: data.deviceSerial,
