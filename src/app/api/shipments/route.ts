@@ -25,6 +25,28 @@ function generateComponents(cpus: number): string {
   return `${cpus} CPU${cpus > 1 ? 's' : ''}, ${cpus} Monitor${cpus > 1 ? 's' : ''}, ${cpus} Keyboard${cpus > 1 ? 's' : ''}, ${cpus} Mouse${cpus > 1 ? 'mice' : ''}, ${cpus} Webcam${cpus > 1 ? 's' : ''}, ${cpus} Headphone${cpus > 1 ? 's' : ''}`
 }
 
+function parseDateInput(input?: string | Date | null): Date | null {
+  if (!input) return null
+  if (input instanceof Date) {
+    return Number.isNaN(input.getTime()) ? null : input
+  }
+  const normalized = input.trim()
+  const dmy = /^(\d{2})-(\d{2})-(\d{4})$/.exec(normalized)
+  if (dmy) {
+    const [, dd, mm, yyyy] = dmy
+    return new Date(`${yyyy}-${mm}-${dd}T00:00:00.000Z`)
+  }
+  const parsed = new Date(normalized)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+function normalizeMobileNumber(input: string): string {
+  const value = input.trim()
+  if (value.startsWith('+233')) return `+91${value.slice(4)}`
+  if (value.startsWith('233')) return `+91${value.slice(3)}`
+  return value
+}
+
 /**
  * GET /api/shipments
  * Fetch all shipments with pagination and filtering
@@ -164,6 +186,13 @@ export async function POST(request: NextRequest) {
       }
 
       const data = validationResult.data
+      const parsedOrderDate = parseDateInput(data.orderDate)
+      if (!parsedOrderDate) {
+        return NextResponse.json(
+          { error: 'Validation failed', details: [{ field: 'orderDate', message: 'Invalid order date format' }] },
+          { status: 400 }
+        )
+      }
 
       // Generate refId
       const refId = await generateShipmentRefId()
@@ -180,7 +209,7 @@ export async function POST(request: NextRequest) {
           state: data.state || null,
           pincode: data.pincode || null,
           contactPerson: data.contactPerson,
-          mobileNumber: data.mobileNumber,
+          mobileNumber: normalizeMobileNumber(data.mobileNumber),
           cpus: data.cpus || 1,
           components,
           serials: data.serials,
@@ -189,9 +218,9 @@ export async function POST(request: NextRequest) {
           signedQc: data.signedQc,
           additionalDocs: data.additionalDocs,
           purpose: data.purpose || 'OTHER',
-          orderDate: new Date(data.orderDate),
-          dispatchDate: data.dispatchDate ? new Date(data.dispatchDate) : null,
-          deliveryDate: data.deliveryDate ? new Date(data.deliveryDate) : null,
+          orderDate: parsedOrderDate,
+          dispatchDate: parseDateInput(data.dispatchDate),
+          deliveryDate: parseDateInput(data.deliveryDate),
           totalCost: data.totalCost || 0,
           notes: data.notes,
           ownerId: data.ownerId || user.id,

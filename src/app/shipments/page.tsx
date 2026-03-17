@@ -78,7 +78,7 @@ export default function ShipmentsPage() {
   const [showFilterPanel, setShowFilterPanel] = useState(false)
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null)
   const [editingShipment, setEditingShipment] = useState<Shipment | null>(null)
-  const [formData, setFormData] = useState<FormData>(initialFormData)
+  const [formData, setFormData] = useState<FormData>({ ...initialFormData, mobileNumber: '+91 ' })
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
 
@@ -136,7 +136,11 @@ export default function ShipmentsPage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: value }))
+    const normalizedValue = name === 'mobileNumber'
+      ? value.replace(/^\+233/, '+91').replace(/^233/, '+91')
+      : value
+
+    setFormData(prev => ({ ...prev, [name]: normalizedValue }))
     if (formErrors[name]) {
       setFormErrors(prev => ({ ...prev, [name]: '' }))
     }

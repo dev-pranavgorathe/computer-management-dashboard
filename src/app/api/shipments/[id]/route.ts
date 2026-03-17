@@ -35,6 +35,28 @@ async function createApprovalRequest(params: {
   })
 }
 
+function parseDateInput(input?: string | Date | null): Date | null {
+  if (!input) return null
+  if (input instanceof Date) {
+    return Number.isNaN(input.getTime()) ? null : input
+  }
+  const normalized = input.trim()
+  const dmy = /^(\d{2})-(\d{2})-(\d{4})$/.exec(normalized)
+  if (dmy) {
+    const [, dd, mm, yyyy] = dmy
+    return new Date(`${yyyy}-${mm}-${dd}T00:00:00.000Z`)
+  }
+  const parsed = new Date(normalized)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+function normalizeMobileNumber(input: string): string {
+  const value = input.trim()
+  if (value.startsWith('+233')) return `+91${value.slice(4)}`
+  if (value.startsWith('233')) return `+91${value.slice(3)}`
+  return value
+}
+
 /**
  * GET /api/shipments/[id]
  * Fetch a single shipment by ID
@@ -177,6 +199,21 @@ export async function PUT(
 
       const data = validationResult.data
 
+      // Parse dates with validation
+      const parsedOrderDate = data.orderDate !== undefined ? parseDateInput(data.orderDate) : undefined
+      const parsedDispatchDate = data.dispatchDate !== undefined ? parseDateInput(data.dispatchDate) : undefined
+      const parsedDeliveryDate = data.deliveryDate !== undefined ? parseDateInput(data.deliveryDate) : undefined
+
+      if ((data.orderDate !== undefined && parsedOrderDate === null) ||
+          (data.dispatchDate !== undefined && data.dispatchDate !== null && parsedDispatchDate === null) ||
+          (data.deliveryDate !== undefined && data.deliveryDate !== null && parsedDeliveryDate === null)) {
+        return NextResponse.json(
+          { error: 'Validation failed', details: [{ field: 'date', message: 'Invalid date format in one or more date fields' }] },
+          { status: 400 }
+        )
+      }
+
+      // Handle completion approval flow
       if (data.status === 'COMPLETED' && user.role !== 'ADMIN' && user.role !== 'MANAGER') {
         const req = await createApprovalRequest({
           entityId: id,
@@ -207,7 +244,7 @@ export async function PUT(
           ...(data.state !== undefined && { state: data.state || null }),
           ...(data.pincode !== undefined && { pincode: data.pincode || null }),
           ...(data.contactPerson && { contactPerson: data.contactPerson }),
-          ...(data.mobileNumber && { mobileNumber: data.mobileNumber }),
+          ...(data.mobileNumber && { mobileNumber: normalizeMobileNumber(data.mobileNumber) }),
           ...(data.cpus && { cpus: data.cpus }),
           ...(data.components !== undefined && { components: data.components }),
           ...(data.serials !== undefined && { serials: data.serials }),
@@ -216,11 +253,9 @@ export async function PUT(
           ...(data.signedQc !== undefined && { signedQc: data.signedQc }),
           ...(data.additionalDocs !== undefined && { additionalDocs: data.additionalDocs || null }),
           ...(data.purpose && { purpose: data.purpose }),
-          ...(data.mailSent !== undefined && { mailSent: data.mailSent }),
-          ...(data.mailSentAt !== undefined && { mailSentAt: data.mailSentAt }),
-          ...(data.orderDate && { orderDate: data.orderDate }),
-          ...(data.dispatchDate !== undefined && { dispatchDate: data.dispatchDate }),
-          ...(data.deliveryDate !== undefined && { deliveryDate: data.deliveryDate }),
+          ...(parsedOrderDate !== undefined && parsedOrderDate !== null && { orderDate: parsedOrderDate }),
+          ...(parsedDispatchDate !== undefined && { dispatchDate: parsedDispatchDate }),
+          ...(parsedDeliveryDate !== undefined && { deliveryDate: parsedDeliveryDate }),
           ...(data.totalCost !== undefined && { totalCost: data.totalCost }),
           ...(data.notes !== undefined && { notes: data.notes }),
           ...(data.ownerId !== undefined && { ownerId: data.ownerId || null }),
