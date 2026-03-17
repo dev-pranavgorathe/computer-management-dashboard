@@ -165,6 +165,23 @@ export async function POST(request: NextRequest) {
 
       const data = validationResult.data
 
+      if (!data.podName || !data.shippingAddress || !data.contactPerson || !data.mobileNumber || !data.orderDate) {
+        const missingField = !data.podName
+          ? 'podName'
+          : !data.shippingAddress
+            ? 'shippingAddress'
+            : !data.contactPerson
+              ? 'contactPerson'
+              : !data.mobileNumber
+                ? 'mobileNumber'
+                : 'orderDate'
+
+        return NextResponse.json(
+          { error: 'Validation failed', details: [{ field: missingField, message: 'Required field is missing' }] },
+          { status: 400 }
+        )
+      }
+
       // Generate refId
       const refId = await generateShipmentRefId()
 

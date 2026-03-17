@@ -167,6 +167,13 @@ export async function POST(request: NextRequest) {
 
       const data = validationResult.data
 
+      if (!data.podName || !data.issue) {
+        return NextResponse.json(
+          { error: 'Validation failed', details: [{ field: !data.podName ? 'podName' : 'issue', message: 'Required field is missing' }] },
+          { status: 400 }
+        )
+      }
+
       // Generate IDs
       const refId = await generateComplaintRefId()
       const ticket = await generateTicketNumber()
