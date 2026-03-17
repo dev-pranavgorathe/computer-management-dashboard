@@ -194,7 +194,28 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         )
       }
+      if (!data.shippingAddress || !data.shippingAddress.trim()) {
+        return NextResponse.json(
+          { error: 'Validation failed', details: [{ field: 'shippingAddress', message: 'Shipping address is required' }] },
+          { status: 400 }
+        )
+      }
+      if (!data.contactPerson || !data.contactPerson.trim()) {
+        return NextResponse.json(
+          { error: 'Validation failed', details: [{ field: 'contactPerson', message: 'Contact person is required' }] },
+          { status: 400 }
+        )
+      }
+      if (!data.mobileNumber || !data.mobileNumber.trim()) {
+        return NextResponse.json(
+          { error: 'Validation failed', details: [{ field: 'mobileNumber', message: 'Mobile number is required' }] },
+          { status: 400 }
+        )
+      }
       const podName = data.podName.trim()
+      const shippingAddress = data.shippingAddress.trim()
+      const contactPerson = data.contactPerson.trim()
+      const mobileNumber = data.mobileNumber.trim()
 
       const parsedOrderDate = parseDateInput(data.orderDate)
       if (!parsedOrderDate) {
@@ -215,11 +236,11 @@ export async function POST(request: NextRequest) {
         data: {
           refId,
           podName,
-          shippingAddress: data.shippingAddress,
+          shippingAddress,
           state: data.state || null,
           pincode: data.pincode || null,
-          contactPerson: data.contactPerson,
-          mobileNumber: normalizeMobileNumber(data.mobileNumber),
+          contactPerson,
+          mobileNumber: normalizeMobileNumber(mobileNumber),
           cpus: data.cpus || 1,
           components,
           serials: data.serials,
