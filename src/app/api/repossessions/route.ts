@@ -154,13 +154,6 @@ export async function POST(request: NextRequest) {
 
       const data = validationResult.data
 
-      if (!data.podName) {
-        return NextResponse.json(
-          { error: 'Validation failed', details: [{ field: 'podName', message: 'POD name is required' }] },
-          { status: 400 }
-        )
-      }
-
       // Generate IDs
       const refId = await generateRepossessionRefId()
       const ticket = await generateTicketNumber()

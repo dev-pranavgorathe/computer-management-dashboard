@@ -145,13 +145,6 @@ export async function POST(request: NextRequest) {
 
       const data = validationResult.data
 
-      if (!data.podName) {
-        return NextResponse.json(
-          { error: 'Validation failed', details: [{ field: 'podName', message: 'Destination POD name is required' }] },
-          { status: 400 }
-        )
-      }
-
       // Generate refId
       const refId = await generateRedeploymentRefId()
 
