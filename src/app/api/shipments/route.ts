@@ -186,6 +186,16 @@ export async function POST(request: NextRequest) {
       }
 
       const data = validationResult.data
+
+      // Validate required fields
+      if (!data.podName || !data.podName.trim()) {
+        return NextResponse.json(
+          { error: 'Validation failed', details: [{ field: 'podName', message: 'POD Name is required' }] },
+          { status: 400 }
+        )
+      }
+      const podName = data.podName.trim()
+
       const parsedOrderDate = parseDateInput(data.orderDate)
       if (!parsedOrderDate) {
         return NextResponse.json(
@@ -204,7 +214,7 @@ export async function POST(request: NextRequest) {
       const shipment = await prisma.shipment.create({
         data: {
           refId,
-          podName: data.podName,
+          podName,
           shippingAddress: data.shippingAddress,
           state: data.state || null,
           pincode: data.pincode || null,
