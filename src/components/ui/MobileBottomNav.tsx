@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Menu, X, Home, User, Bell, Settings, LogOut, ChevronDown } from 'lucide-react'
+import { Menu, X, Home, User, Bell, Settings, LogOut, ChevronDown, Truck, AlertCircle, RefreshCcw, ArrowRightLeft, FileText, MoreHorizontal, Mail, Shield, Users } from 'lucide-react'
 import { signOut, useSession } from 'next-auth/react'
 
 import Link from 'next/link'
