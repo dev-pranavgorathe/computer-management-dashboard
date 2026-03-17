@@ -1,17 +1,17 @@
-import React from 'react'
+import React, { ReactNode } from 'react'
 
 interface Column {
   key: string
   label: string
   sortable?: boolean
   className?: string
-  render?: (value: any) => React.ReactNode
+  render?: (value: any) => ReactNode
   minWidth?: number
   align?: 'left' | 'right'
 }
 
  const TableProps = {
-  headers?: React.ReactNode[]
+  headers?: ReactNode[]
   data: any[]
   loading?: boolean
   pagination?: {
