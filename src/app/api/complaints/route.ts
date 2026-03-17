@@ -173,7 +173,14 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         )
       }
+      if (!data.issue || !data.issue.trim()) {
+        return NextResponse.json(
+          { error: 'Validation failed', details: [{ field: 'issue', message: 'Issue is required' }] },
+          { status: 400 }
+        )
+      }
       const podName = data.podName.trim()
+      const issue = data.issue.trim()
 
       // Generate IDs
       const refId = await generateComplaintRefId()
@@ -188,7 +195,7 @@ export async function POST(request: NextRequest) {
           phase: data.phase, // Optional per PRD
           deviceType: data.deviceType || 'CPU',
           deviceSerial: data.deviceSerial,
-          issue: data.issue,
+          issue,
           description: data.description,
           contactPerson: data.contactPerson,
           mobileNumber: data.mobileNumber,
