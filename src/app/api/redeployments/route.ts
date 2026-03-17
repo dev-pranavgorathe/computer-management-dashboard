@@ -145,6 +145,14 @@ export async function POST(request: NextRequest) {
 
       const data = validationResult.data
 
+      if (!data.podName || !data.podName.trim()) {
+        return NextResponse.json(
+          { error: 'Validation failed', details: [{ field: 'podName', message: 'POD Name is required' }] },
+          { status: 400 }
+        )
+      }
+      const podName = data.podName.trim()
+
       // Generate refId
       const refId = await generateRedeploymentRefId()
 
@@ -152,7 +160,7 @@ export async function POST(request: NextRequest) {
       const redeployment = await prisma.redeployment.create({
         data: {
           refId,
-          podName: data.podName,
+          podName,
           shippingAddress: data.shippingAddress,
           contactPerson: data.contactPerson,
           mobileNumber: data.mobileNumber,
