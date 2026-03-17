@@ -22,6 +22,7 @@ interface ResponsiveDataTableProps {
     total: number
   }
   onPageChange?: (page: number) => void
+  onPageSizeChange?: (pageSize: number) => void
   onRowClick?: (row: any) => void
   onSort?: (key: string, direction: 'asc' | 'desc') => void
   emptyMessage?: string
@@ -40,6 +41,7 @@ export default function ResponsiveDataTable({
   loading = false,
   pagination,
   onPageChange,
+  onPageSizeChange,
   onRowClick,
   onSort,
   emptyMessage = 'No records found',
@@ -160,13 +162,15 @@ export default function ResponsiveDataTable({
       <DesktopTable />
       <MobileCards />
       
-      {pagination && pagination.total > pagination.limit && onPageChange && (
+      {pagination && pagination.total > pagination.limit && onPageChange && onPageSizeChange && (
         <div className="mt-6">
           <PaginationControls
             page={pagination.page}
-            limit={pagination.limit}
-            total={pagination.total}
+            totalPages={Math.ceil(pagination.total / pagination.limit)}
+            totalRecords={pagination.total}
+            pageSize={pagination.limit}
             onPageChange={onPageChange}
+            onPageSizeChange={onPageSizeChange}
           />
         </div>
       )}
