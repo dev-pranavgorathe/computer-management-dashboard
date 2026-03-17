@@ -160,7 +160,7 @@ export default function ResponsiveDataTable({
       <DesktopTable />
       <MobileCards />
       
-      {pagination && pagination.total > pagination.limit && (
+      {pagination && pagination.total > pagination.limit && onPageChange && (
         <div className="mt-6">
           <PaginationControls
             page={pagination.page}
