@@ -50,6 +50,13 @@ model User {
   revokedAccess       TemporaryAccess[]    @relation("TemporaryAccessRevoker")
   delegationsGiven    Delegation[]         @relation("DelegationFrom")
   delegationsReceived Delegation[]         @relation("DelegationTo")
+  
+  // PC Monitoring Relations
+  assignedPCs         PC[]
+  activityLogs        ActivityLog[]
+  websiteLogs         WebsiteUsageLog[]
+  blockedWebsites     BlockedWebsite[]     @relation("BlockedBy")
+  studentSessions     StudentSession[]
 
   @@index([email])
   @@index([role])
@@ -448,4 +455,147 @@ model MFARequirement {
 
   @@index([action])
   @@index([isActive])
+}
+
+// ==================== PC MONITORING MODELS ====================
+
+model PC {
+  id            String   @id @default(cuid())
+  pcId          String   @unique // Unique identifier (e.g., "PC-001")
+  name          String   // Display name
+  podId         String?  // Reference to POD/Center
+  podName       String?  // POD name for quick reference
+  
+  // Hardware Info
+  serialNumber  String?  @unique
+  model         String?
+  os            String?  // Operating System
+  cpu           String?  // CPU info
+  ram           String?  // RAM info
+  storage       String?  // Storage info
+  
+  // Network Info
+  ipAddress     String?
+  macAddress    String?  @unique
+  
+  // Status
+  status        String   @default("OFFLINE") // ONLINE, OFFLINE, MAINTENANCE, INACTIVE
+  lastHeartbeat DateTime? // Last ping from PC
+  lastActiveAt  DateTime?
+  
+  // Assignment
+  assignedUserId String?
+  assignedUser   User?    @relation(fields: [assignedUserId], references: [id], name: "AssignedPCs", onDelete: SetNull)
+  
+  // Metadata
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  isActive      Boolean   @default(true)
+  
+  // Relations
+  activityLogs  ActivityLog[]
+  websiteLogs   WebsiteUsageLog[]
+  studentSessions StudentSession[]
+  
+  @@index([pcId])
+  @@index([status])
+  @@index([podId])
+  @@index([isActive])
+  @@index([lastHeartbeat])
+}
+
+model ActivityLog {
+  id          String   @id @default(cuid())
+  pcId        String
+  pc          PC       @relation(fields: [pcId], references: [id], onDelete: Cascade)
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  // Activity Details
+  action      String   // LOGIN, LOGOUT, APP_START, APP_END, WEBSITE_VISIT, etc.
+  category    String   // AUTH, APP, WEBSITE, SYSTEM, etc.
+  description String?
+  details     Json?    // Additional details
+  
+  // Timestamps
+  createdAt   DateTime  @default(now())
+  duration    Int?     // Duration in seconds (if applicable)
+  
+  @@index([pcId])
+  @@index([userId])
+  @@index([action])
+  @@index([category])
+  @@index([createdAt])
+}
+
+model WebsiteUsageLog {
+  id          String   @id @default(cuid())
+  pcId        String
+  pc          PC       @relation(fields: [pcId], references: [id], onDelete: Cascade)
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  // Website Details
+  domain      String
+  url         String?
+  title       String?
+  isBlocked   Boolean  @default(false)
+  blockReason String?
+  
+  // Timestamps
+  visitedAt   DateTime  @default(now())
+  duration    Int?     // Duration in seconds
+  exitedAt    DateTime?
+  
+  @@index([pcId])
+  @@index([userId])
+  @@index([domain])
+  @@index([isBlocked])
+  @@index([visitedAt])
+}
+
+model BlockedWebsite {
+  id          String   @id @default(cuid())
+  domain      String   @unique
+  reason      String?
+  category    String?  // SOCIAL, GAMBLING, ADULT, GAMING, etc.
+  addedById   String?
+  addedBy     User?    @relation(fields: [addedById], references: [id], onDelete: SetNull)
+  
+  // Blocking rules
+  blockLevel  String   @default("FULL") // FULL, PARTIAL, TIME_BASED
+  allowedHours Json?   // e.g., ["09:00-12:00", "14:00-17:00"]
+  
+  // Metadata
+  isActive    Boolean  @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  
+  @@index([domain])
+  @@index([isActive])
+  @@index([category])
+}
+
+model StudentSession {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pcId        String
+  pc          PC       @relation(fields: [pcId], references: [id], onDelete: Cascade)
+  
+  // Session Details
+  loginAt     DateTime  @default(now())
+  logoutAt    DateTime?
+  duration    Int?     // Duration in seconds
+  isActive    Boolean   @default(true)
+  
+  // Metrics
+  websitesVisited Int   @default(0)
+  appsUsed       Int    @default(0)
+  
+  @@index([userId])
+  @@index([pcId])
+  @@index([isActive])
+  @@index([loginAt])
 }
