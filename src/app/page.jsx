@@ -3454,7 +3454,7 @@ export default function App() {
         body > div.flex.h-screen.bg-gray-50 > aside { display: none !important; }
         body > div.flex.h-screen.bg-gray-50 > main { width: 100% !important; flex: 1 1 auto !important; }
       `}</style>
-      <div style={{ display:"flex", height:"100vh", background:T.bg, fontFamily:"'DM Sans',sans-serif", overflow:"hidden" }}>
+      <div className="cmd-shell" style={{ display:"flex", height:"100vh", background:T.bg, fontFamily:"'DM Sans',sans-serif", overflow:"hidden" }}>
         {/* Sidebar */}
         <aside style={{ width:218, background:T.sidebar, display:"flex", flexDirection:"column", flexShrink:0, boxShadow:"2px 0 12px rgba(0,0,0,.15)" }}>
           <div style={{ padding:"18px 16px 14px", borderBottom:"1px solid rgba(255,255,255,0.07)" }}>
@@ -3512,7 +3512,7 @@ export default function App() {
 
         <div style={{ flex:1, display:"flex", flexDirection:"column", minWidth:0 }}>
           {/* Header */}
-          <header style={{ height:52, background:"#fff", borderBottom:`1px solid ${T.border}`, display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 24px", flexShrink:0, boxShadow:"0 1px 4px rgba(0,0,0,.04)" }}>
+          <header className="cmd-header" style={{ height:52, background:"#fff", borderBottom:`1px solid ${T.border}`, display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 24px", flexShrink:0, boxShadow:"0 1px 4px rgba(0,0,0,.04)" }}>
             <div style={{ display:"flex", alignItems:"center", gap:8 }}>
               <span style={{ fontSize:14, fontWeight:700, color:T.text, textTransform:"capitalize" }}>{page}</span>
               <span style={{ fontSize:11, color:T.textLight, background:T.grayLight, border:`1px solid ${T.border}`, borderRadius:4, padding:"2px 8px" }}>CMD Portal</span>
@@ -3527,7 +3527,7 @@ export default function App() {
               <button onClick={()=>signOut({ callbackUrl:"/auth/signin" })} style={{ border:`1px solid ${T.border}`, background:"#fff", borderRadius:6, padding:"6px 10px", fontSize:12, color:T.textMid, cursor:"pointer" }}>Logout</button>
             </div>
           </header>
-          <main style={{ flex:1, overflowY:"auto", padding:24 }}>
+          <main className="cmd-main" style={{ flex:1, overflowY:"auto", padding:24 }}>
             <div className="fade" key={page}>{renderPage()}</div>
           </main>
         </div>
@@ -3535,3 +3535,15 @@ export default function App() {
     </>
   );
 }
+r:`1px solid ${T.border}`, background:"#fff", borderRadius:6, padding:"6px 10px", fontSize:12, color:T.textMid, cursor:"pointer" }}>Logout</button>
+            </div>
+          </header>
+          <main className="cmd-main" style={{ flex:1, overflowY:"auto", padding:24 }}>
+            <div className="fade" key={page}>{renderPage()}</div>
+          </main>
+        </div>
+      </div>
+    </>
+  );
+}
+
