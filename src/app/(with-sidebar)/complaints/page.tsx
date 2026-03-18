@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { AlertTriangle, Download, Edit, Eye, Loader2, Plus, Search, Trash2, Mail } from 'lucide-react'
+import { useEffect, useState, useMemo } from 'react'
+import { AlertTriangle, Download, Edit, Eye, Loader2, Plus, Search, Trash2, Mail, TrendingDown, CheckCircle } from 'lucide-react'
 import { toast } from 'react-hot-toast'
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts'
 import Modal from '@/components/Modal'
 import { exportToCSV, exportToExcel, formatDate } from '@/lib/export'
 
@@ -427,6 +428,66 @@ Reported Date: ${formatDate(complaint.createdAt)}
           </button>
         </div>
       </div>
+
+      {/* Analytics Charts */}
+      {complaints.length > 0 && (
+        <div className="mb-6 grid grid-cols-1 lg:grid-cols-2 gap-4 fade-in">
+          {/* Status Distribution */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">Complaint Status</h3>
+            <ResponsiveContainer width="100%" height={150}>
+              <PieChart>
+                <Pie
+                  data={useMemo(() => {
+                    const statusCounts: Record<string, number> = {}
+                    complaints.forEach(c => {
+                      statusCounts[c.status] = (statusCounts[c.status] || 0) + 1
+                    })
+                    return Object.entries(statusCounts).map(([name, value]) => ({ name, value }))
+                  }, [complaints])}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={40}
+                  outerRadius={60}
+                  paddingAngle={3}
+                  dataKey="value"
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                >
+                  <Cell fill="#3b82f6" />
+                  <Cell fill="#f59e0b" />
+                  <Cell fill="#10b981" />
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Priority Distribution */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">Priority Levels</h3>
+            <ResponsiveContainer width="100%" height={150}>
+              <BarChart data={useMemo(() => {
+                const priorityCounts: Record<string, number> = {}
+                complaints.forEach(c => {
+                  priorityCounts[c.priority] = (priorityCounts[c.priority] || 0) + 1
+                })
+                return [
+                  { name: 'Critical', value: priorityCounts['CRITICAL'] || 0, color: '#ef4444' },
+                  { name: 'High', value: priorityCounts['HIGH'] || 0, color: '#f59e0b' },
+                  { name: 'Medium', value: priorityCounts['MEDIUM'] || 0, color: '#3b82f6' },
+                  { name: 'Low', value: priorityCounts['LOW'] || 0, color: '#10b981' },
+                ]
+              }, [complaints])}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <XAxis dataKey="name" tick={{ fontSize: 11 }} stroke="#94a3b8" />
+                <YAxis tick={{ fontSize: 11 }} stroke="#94a3b8" />
+                <Tooltip />
+                <Bar dataKey="value" fill="#3b82f6" radius={[2, 2, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
 
       <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">

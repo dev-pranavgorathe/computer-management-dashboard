@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { Search, Filter, Plus, Eye, Edit, Truck, Download, Loader2, Trash2, Mail, Upload, X } from 'lucide-react'
+import { useEffect, useState, useMemo } from 'react'
+import { Search, Filter, Plus, Eye, Edit, Truck, Download, Loader2, Trash2, Mail, Upload, X, TrendingUp, Package } from 'lucide-react'
 import { toast } from 'react-hot-toast'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts'
 import { exportToCSV, exportToExcel, formatDate, formatCurrency } from '@/lib/export'
 import StatusPipeline, { StatusBadge, SHIPMENT_PIPELINE } from '@/components/StatusPipeline'
 import RecordDetailModal from '@/components/RecordDetailModal'
@@ -568,6 +569,78 @@ Notes: ${shipment.notes || 'N/A'}
           </button>
         </div>
       </div>
+
+      {/* Analytics Section */}
+      {shipments.length > 0 && (
+        <div className="mb-6 grid grid-cols-1 lg:grid-cols-3 gap-4 fade-in">
+          {/* KPI Card */}
+          <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white shadow-lg">
+            <div className="flex items-center justify-between mb-4">
+              <Package className="h-8 w-8 opacity-80" />
+              <span className="text-sm font-medium opacity-90">Total Shipments</span>
+            </div>
+            <p className="text-4xl font-bold">{shipments.length}</p>
+            <div className="mt-3 flex items-center gap-2 text-sm">
+              <TrendingUp className="h-4 w-4" />
+              <span className="opacity-90">+{shipments.filter(s => s.status === 'COMPLETED').length} completed</span>
+            </div>
+          </div>
+
+          {/* Status Distribution Chart */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">Status Distribution</h3>
+            <ResponsiveContainer width="100%" height={120}>
+              <PieChart>
+                <Pie
+                  data={useMemo(() => {
+                    const statusCounts: Record<string, number> = {}
+                    shipments.forEach(s => {
+                      statusCounts[s.status] = (statusCounts[s.status] || 0) + 1
+                    })
+                    return Object.entries(statusCounts).map(([name, value]) => ({ name: name.replace(/_/g, ' '), value }))
+                  }, [shipments])}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={30}
+                  outerRadius={45}
+                  paddingAngle={2}
+                  dataKey="value"
+                >
+                  {useMemo(() => {
+                    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6']
+                    return colors.map((color, i) => <Cell key={i} fill={color} />)
+                  }, [])}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Purpose Chart */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">By Purpose</h3>
+            <ResponsiveContainer width="100%" height={120}>
+              <BarChart data={useMemo(() => {
+                const purposeCounts: Record<string, number> = {}
+                shipments.forEach(s => {
+                  const purpose = s.purpose || 'OTHER'
+                  purposeCounts[purpose] = (purposeCounts[purpose] || 0) + 1
+                })
+                return Object.entries(purposeCounts).map(([name, value]) => ({ 
+                  name: name.replace(/_/g, ' ').substring(0, 10), 
+                  value 
+                })).slice(0, 5)
+              }, [shipments])}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <XAxis dataKey="name" tick={{ fontSize: 10 }} stroke="#94a3b8" />
+                <YAxis tick={{ fontSize: 10 }} stroke="#94a3b8" />
+                <Tooltip />
+                <Bar dataKey="value" fill="#3b82f6" radius={[2, 2, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
 
       {!showFilterPanel ? (
         <div className="mb-6 rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
