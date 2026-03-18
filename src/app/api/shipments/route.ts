@@ -258,9 +258,9 @@ export async function POST(request: NextRequest) {
           try {
             return await prisma.shipment.create({
               data: {
-                ...createData,
+                ...(createData as Record<string, unknown>),
                 refId: currentRefId,
-              },
+              } as any,
               include: includeOwner
                 ? {
                     user: {
