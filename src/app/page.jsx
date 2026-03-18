@@ -3535,15 +3535,4 @@ export default function App() {
     </>
   );
 }
-r:`1px solid ${T.border}`, background:"#fff", borderRadius:6, padding:"6px 10px", fontSize:12, color:T.textMid, cursor:"pointer" }}>Logout</button>
-            </div>
-          </header>
-          <main className="cmd-main" style={{ flex:1, overflowY:"auto", padding:24 }}>
-            <div className="fade" key={page}>{renderPage()}</div>
-          </main>
-        </div>
-      </div>
-    </>
-  );
-}
 
