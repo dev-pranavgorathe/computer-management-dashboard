@@ -17,8 +17,7 @@ import {
   CheckSquare,
   LogOut,
   Settings,
-  Users,
-  Monitor
+  Users
 } from 'lucide-react'
 import { useState } from 'react'
 
