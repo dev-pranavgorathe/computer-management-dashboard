@@ -238,53 +238,81 @@ export async function POST(request: NextRequest) {
       // Auto-populate components if not provided
       const components = data.components || generateComponents(data.cpus || 1)
 
-      // Create shipment
-      const shipment = await prisma.shipment.create({
-        data: {
-          refId,
-          podName,
-          shippingAddress,
-          state: data.state || null,
-          pincode: data.pincode || null,
-          contactPerson,
-          mobileNumber: normalizeMobileNumber(mobileNumber),
-          cpus: data.cpus || 1,
-          components,
-          serials: data.serials,
-          trackingId: data.trackingId,
-          qcReport: data.qcReport,
-          signedQc: data.signedQc,
-          additionalDocs: data.additionalDocs,
-          purpose: data.purpose || 'OTHER',
-          orderDate: parsedOrderDate,
-          dispatchDate: parseDateInput(data.dispatchDate),
-          deliveryDate: parseDateInput(data.deliveryDate),
-          totalCost: data.totalCost || 0,
-          notes: data.notes,
-          ownerId: data.ownerId || user.id,
-          team: data.team || null,
-          location: data.location || null,
-          status: 'PENDING',
-          mailSent: false,
-          userId: user.id,
-        },
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            }
+      // Create shipment (compat mode for older production schema)
+      let shipment
+      try {
+        shipment = await prisma.shipment.create({
+          data: {
+            refId,
+            podName,
+            shippingAddress,
+            state: data.state || null,
+            pincode: data.pincode || null,
+            contactPerson,
+            mobileNumber: normalizeMobileNumber(mobileNumber),
+            cpus: data.cpus || 1,
+            components,
+            serials: data.serials,
+            trackingId: data.trackingId,
+            qcReport: data.qcReport,
+            signedQc: data.signedQc,
+            additionalDocs: data.additionalDocs,
+            purpose: data.purpose || 'OTHER',
+            orderDate: parsedOrderDate,
+            dispatchDate: parseDateInput(data.dispatchDate),
+            deliveryDate: parseDateInput(data.deliveryDate),
+            totalCost: data.totalCost || 0,
+            notes: data.notes,
+            ownerId: data.ownerId || user.id,
+            team: data.team || null,
+            location: data.location || null,
+            status: 'PENDING',
+            mailSent: false,
+            userId: user.id,
           },
-          owner: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              }
+            },
+            owner: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              }
             }
           }
-        }
-      })
+        })
+      } catch (createError) {
+        console.error('Primary create shipment failed, trying compatibility mode:', createError)
+
+        // Fallback for older DB schema: only write core columns
+        shipment = await prisma.shipment.create({
+          data: {
+            refId,
+            podName,
+            shippingAddress,
+            contactPerson,
+            mobileNumber: normalizeMobileNumber(mobileNumber),
+            orderDate: parsedOrderDate,
+            status: 'PENDING',
+            userId: user.id,
+          },
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              }
+            }
+          }
+        })
+      }
 
       // Create audit log
       const clientInfo = getClientInfo(request)
