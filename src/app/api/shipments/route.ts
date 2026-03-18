@@ -6,18 +6,24 @@ import { shipmentCreateSchema, shipmentUpdateSchema, paginationSchema, SHIPMENT_
 
 // Helper to generate refId
 async function generateShipmentRefId(): Promise<string> {
-  const lastShipment = await prisma.shipment.findFirst({
-    where: { refId: { startsWith: 'SHP-' } },
-    orderBy: { createdAt: 'desc' },
-    select: { refId: true },
-  })
-  
-  if (!lastShipment || !lastShipment.refId) {
+  try {
+    const lastShipment = await prisma.shipment.findFirst({
+      where: { refId: { startsWith: 'SHP-' } },
+      orderBy: { createdAt: 'desc' },
+      select: { refId: true },
+    })
+    
+    if (!lastShipment || !lastShipment.refId) {
     return 'SHP-001'
+    }
+    
+    const lastNum = parseInt(lastShipment.refId.replace('SHP-', ''), 10)
+    const nextNum = (isNaN(lastNum) ? 1 : lastNum + 1)
+    return `SHP-${String(nextNum).padStart(3, '0')}`
+  } catch (error) {
+    console.error('Error generating refId:', error)
+    return `SHP-${Date.now().toString().slice(-3)}`
   }
-  
-  const lastNum = parseInt(lastShipment.refId.replace('SHP-', ''), 10)
-  return `SHP-${String(lastNum + 1).padStart(3, '0')}`
 }
 
 // Helper to auto-populate components based on CPU count
@@ -232,86 +238,117 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      // Generate refId
-      const refId = await generateShipmentRefId()
-
       // Auto-populate components if not provided
       const components = data.components || generateComponents(data.cpus || 1)
 
-      // Create shipment (compat mode for older production schema)
+      const isRefIdConflict = (err: unknown) => {
+        const msg = String(err || '')
+        return msg.includes('Unique constraint failed') && msg.includes('refId')
+      }
+
+      const createWithRetry = async (
+        createData: Record<string, unknown>,
+        includeOwner = true
+      ) => {
+        let attempts = 0
+        let currentRefId = await generateShipmentRefId()
+        let lastError: unknown
+
+        while (attempts < 4) {
+          try {
+            return await prisma.shipment.create({
+              data: {
+                ...createData,
+                refId: currentRefId,
+              },
+              include: includeOwner
+                ? {
+                    user: {
+                      select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                      }
+                    },
+                    owner: {
+                      select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                      }
+                    }
+                  }
+                : {
+                    user: {
+                      select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                      }
+                    }
+                  }
+            })
+          } catch (err) {
+            lastError = err
+            if (isRefIdConflict(err)) {
+              attempts += 1
+              currentRefId = await generateShipmentRefId()
+              continue
+            }
+            throw err
+          }
+        }
+
+        throw lastError
+      }
+
+      // Create shipment with schema-compat + refId retry
       let shipment
       try {
-        shipment = await prisma.shipment.create({
-          data: {
-            refId,
-            podName,
-            shippingAddress,
-            state: data.state || null,
-            pincode: data.pincode || null,
-            contactPerson,
-            mobileNumber: normalizeMobileNumber(mobileNumber),
-            cpus: data.cpus || 1,
-            components,
-            serials: data.serials,
-            trackingId: data.trackingId,
-            qcReport: data.qcReport,
-            signedQc: data.signedQc,
-            additionalDocs: data.additionalDocs,
-            purpose: data.purpose || 'OTHER',
-            orderDate: parsedOrderDate,
-            dispatchDate: parseDateInput(data.dispatchDate),
-            deliveryDate: parseDateInput(data.deliveryDate),
-            totalCost: data.totalCost || 0,
-            notes: data.notes,
-            ownerId: data.ownerId || user.id,
-            team: data.team || null,
-            location: data.location || null,
-            status: 'PENDING',
-            mailSent: false,
-            userId: user.id,
-          },
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-              }
-            },
-            owner: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-              }
-            }
-          }
+        shipment = await createWithRetry({
+          podName,
+          shippingAddress,
+          state: data.state || null,
+          pincode: data.pincode || null,
+          contactPerson,
+          mobileNumber: normalizeMobileNumber(mobileNumber),
+          cpus: data.cpus || 1,
+          components,
+          serials: data.serials,
+          trackingId: data.trackingId,
+          qcReport: data.qcReport,
+          signedQc: data.signedQc,
+          additionalDocs: data.additionalDocs,
+          purpose: data.purpose || 'OTHER',
+          orderDate: parsedOrderDate,
+          dispatchDate: parseDateInput(data.dispatchDate),
+          deliveryDate: parseDateInput(data.deliveryDate),
+          totalCost: data.totalCost || 0,
+          notes: data.notes,
+          ownerId: data.ownerId || user.id,
+          team: data.team || null,
+          location: data.location || null,
+          status: 'PENDING',
+          mailSent: false,
+          userId: user.id,
         })
       } catch (createError) {
         console.error('Primary create shipment failed, trying compatibility mode:', createError)
 
         // Fallback for older DB schema: only write core columns
-        shipment = await prisma.shipment.create({
-          data: {
-            refId,
+        shipment = await createWithRetry(
+          {
             podName,
             shippingAddress,
             contactPerson,
             mobileNumber: normalizeMobileNumber(mobileNumber),
+            cpus: data.cpus || 1,
             orderDate: parsedOrderDate,
             status: 'PENDING',
             userId: user.id,
           },
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-              }
-            }
-          }
-        })
+          false
+        )
       }
 
       // Create audit log
