@@ -143,9 +143,16 @@ export async function GET(request: NextRequest) {
       })
     } catch (error) {
       console.error('Error fetching shipments:', error)
+
+      // Hotfix: avoid hard 500 loops on dashboard when DB schema/env is temporarily mismatched
+      // (e.g., missing column/table in production). Return empty dataset so UI stays usable.
       return NextResponse.json(
-        { error: 'Failed to fetch shipments' },
-        { status: 500 }
+        {
+          shipments: [],
+          pagination: { page: 1, limit: 50, total: 0, totalPages: 0 },
+          warning: 'Shipments data unavailable. Please verify DB migrations/env.',
+        },
+        { status: 200 }
       )
     } finally {
       await prisma.$disconnect()
