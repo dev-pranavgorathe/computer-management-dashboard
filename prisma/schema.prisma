@@ -101,6 +101,7 @@ model Shipment {
   pincode         String? // Pincode
   contactPerson   String
   mobileNumber    String
+  email           String? // Contact email
 
   // PRD fields
   cpus           Int     @default(1)
@@ -111,6 +112,14 @@ model Shipment {
   signedQc       String? // Signed QC report filename (required for Completed)
   additionalDocs String? // Additional document filenames (comma-separated)
   purpose        String? // Purpose: NEW_POD | MANTHAN_POD | TEACH_TO_EARN | PERIPHERALS | OTHER
+  
+  // Dashboard file fields
+  model          String? // e.g., "20 x CPU i3 Gen 7th"
+  os             String? // e.g., "Zorin", "Windows"
+  payment        String? // e.g., "Apni Pathshala", "Pranav"
+  qcIssues       String? // "Yes" or "No"
+  shippingCharge Float?  // Shipping cost
+  setupDate      DateTime? // Setup completion date
 
   orderDate    DateTime
   dispatchDate DateTime?
@@ -119,6 +128,7 @@ model Shipment {
   status       String    @default("PENDING")
   totalCost    Float     @default(0)
   notes        String?
+  remarks      String? // Additional remarks from dashboard
   mailSent     Boolean   @default(false) // Track if order mail was sent
   mailSentAt   DateTime? // When the mail was sent
 
@@ -211,7 +221,20 @@ model Repossession {
   mailSent        Boolean   @default(false) // Track if mail was sent
   mailSentAt      DateTime? // When the mail was sent
 
-  // Status: PENDING | COLLECTED | IN_PROGRESS | COMPLETED
+  // Dashboard file fields - detailed component counts
+  pc_sets      Int?  // Number of PC sets
+  cpus         Int?  // Number of CPUs
+  monitors     Int?  // Number of monitors
+  laptops      Int?  // Number of laptops
+  mice         Int?  // Number of mice
+  keyboards    Int?  // Number of keyboards
+  webcams      Int?  // Number of webcams
+  headphones   Int?  // Number of headphones
+  thin_clients Int?  // Number of thin clients
+  printers     Int?  // Number of printers
+  expectedDate DateTime? // Expected collection date
+
+  // Status: PENDING | INFORMED | IN_PROCESS | RECEIVED | COMPLETED
   status String @default("PENDING")
 
   createdAt DateTime  @default(now())
