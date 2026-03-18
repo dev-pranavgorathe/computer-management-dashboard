@@ -3,8 +3,7 @@
  * Handles all business logic for PC status tracking, activity logs, and website monitoring
  */
 
-import { PrismaClient, PCStatus, ActivityCategory } from '@prisma/client'
-import { pc } from 'node:process'
+import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
 

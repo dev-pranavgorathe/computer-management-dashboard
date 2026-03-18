@@ -19,6 +19,7 @@ interface PC {
   storage?: string
   ipAddress?: string
   macAddress?: string
+  notes?: string
   status: string
   lastHeartbeat?: string
   lastActiveAt?: string
@@ -380,7 +381,7 @@ export default function PCManagementPage() {
             setEditingPC(null)
             resetForm()
           }}
-          wide
+          maxWidthClassName="max-w-4xl"
         >
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
