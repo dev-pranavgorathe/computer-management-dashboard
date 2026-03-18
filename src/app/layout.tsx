@@ -1,6 +1,5 @@
 import type { Metadata } from 'next'
 import './globals.css'
-import Sidebar from '@/components/Sidebar'
 import AppToaster from '@/components/AppToaster'
 import Providers from '@/components/Providers'
 
