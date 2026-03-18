@@ -1,250 +1,289 @@
-# 🖥️ Computer Management Dashboard
+# Computer Management Dashboard
 
-A comprehensive dashboard for managing and monitoring computer assets deployed across PODs (Project Out for Development) at Apni Pathshala.
+A comprehensive web-based application for managing computer equipment operations across multiple Points of Distribution (PODs).
 
-## ✨ Features
+## 🚀 Quick Start
 
-### 🎯 Core Functionality
-- **Overview Dashboard** - Real-time metrics and analytics
-  - Total PCs Deployed
-  - Complaints tracking with resolution rates
-  - Repossession & Redeployment statistics
-  - Deployment trends and visualizations
+### Prerequisites
+- Node.js 18+ 
+- PostgreSQL database (Supabase recommended)
+- npm or yarn
 
-### 📦 Module Management
-- **Shipment Management** - Track computer shipments to PODs
-  - Real-time status tracking (Processing → In Transit → Delivered)
-  - Cost management and reporting
-  - Contact information tracking
-
-- **Complaint Management** - Resolve POD complaints efficiently
-  - Priority-based tracking (High/Medium/Low)
-  - Status workflow (Pending → In Progress → Solved)
-  - Issue type categorization (Hardware/Software/Network)
-
-- **Repossession Management** - Track recovered hardware
-  - Condition assessment (Good/Fair/Needs Repair)
-  - Storage location tracking
-  - Status workflow (Available → Under Repair → Redeployed)
-
-- **Redeployment Management** - Manage asset redistribution
-  - Source & destination tracking
-  - Link to resolved complaints
-  - Flow visualization
-
-### 🚀 Advanced Features
-- **Export Functionality**
-  - Download data as CSV
-  - Export to Excel (.xlsx)
-  - Filtered data export
-
-- **Advanced Filtering**
-  - Date range filters (from/to)
-  - Multi-select status filters
-  - Global search across all fields
-  - Collapsible filter panel
-
-- **Google Sheets Integration** (Ready for setup)
-  - Connect to existing Google Sheets
-  - Real-time data sync
-  - Type-safe data models
-
-### 🔐 Authentication
-- **GitHub OAuth** via NextAuth.js
-- Secure access control
-- Session management
-
-## 🛠️ Tech Stack
-
-- **Framework**: Next.js 16 (App Router)
-- **UI Library**: React 18
-- **Styling**: Tailwind CSS
-- **Charts**: Recharts
-- **Icons**: Lucide React
-- **Date Handling**: date-fns
-- **Export**: xlsx (Excel), CSV
-- **Authentication**: NextAuth.js
-- **TypeScript**: Full type safety
-
-## 📦 Installation
+### Installation
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/dev-pranavgorathe/computer-management-dashboard.git
 cd computer-management-dashboard
 
 # Install dependencies
 npm install
 
-# Run development server
+# Set up environment variables
+cp .env.example .env.local
+# Edit .env.local with your database credentials
+
+# Generate Prisma client
+npx prisma generate
+
+# Run database migrations
+npx prisma migrate dev
+
+# Start development server
+npm run dev
+```
+
+### Environment Variables
+
+Create a `.env.local` file:
+
+```env
+# Database
+DATABASE_URL="postgresql://user:password@host:5432/dbname"
+POSTGRES_PRISMA_URL="postgresql://user:password@host:5432/dbname"
+
+# NextAuth
+NEXTAUTH_SECRET="your-secret-key-here"
+NEXTAUTH_URL="http://localhost:3000"
+
+# Application
+NODE_ENV="development"
+```
+
+## 📖 Documentation
+
+- **[PRD.md](./PRD.md)** - Product Requirements Document
+- **[API_DOCUMENTATION.md](./API_DOCUMENTATION.md)** - API endpoints guide
+- **[DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md)** - Database structure
+- **[DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md)** - Deployment instructions
+
+## 🛠️ Features
+
+### Core Modules
+- **📦 Shipments** - Create, track, and manage equipment shipments
+- **🎫 Complaints** - Register and resolve issues
+- **🔄 Redeployments** - Track equipment movements between locations
+- **♻️ Repossessions** - Manage equipment recovery
+- **📊 Dashboard** - Real-time analytics and reporting
+- **👥 User Management** - Role-based access control
+
+### Key Features
+- ✅ Mobile-responsive design
+- ✅ Role-based permissions (ADMIN, MANAGER, USER, VIEWER)
+- ✅ Real-time status tracking
+- ✅ Document uploads (QC Reports)
+- ✅ Export to CSV/Excel
+- ✅ Audit logging
+- ✅ Automated reference ID generation
+
+## 🔐 User Roles
+
+| Role | Create | Edit Own | Edit All | Delete | Approve |
+|------|-------|----------|----------|--------|---------|
+| ADMIN | ✅ | ✅ | ✅ | ✅ | ✅ |
+| MANAGER | ✅ | ✅ | ✅ | ❌ | ✅ |
+| USER | ✅ | ✅ | ❌ | ❌ | ❌ |
+| VIEWER | ❌ | ❌ | ❌ | ❌ | ❌ |
+
+## 🏗️ Tech Stack
+
+**Frontend:**
+- Next.js 16.1.6 (React 18+)
+- TypeScript 5.0+
+- Tailwind CSS 3.4+
+- Lucide React Icons
+
+**Backend:**
+- Next.js API Routes
+- Prisma ORM 5.22.0
+- NextAuth.js 4.24.11
+- Zod validation
+
+**Database:**
+- PostgreSQL 15+ (Supabase)
+- Prisma migrations
+
+**Deployment:**
+- Vercel (Production)
+- Environment: Node.js 18+
+
+## 📁 Project Structure
+
+```
+computer-management-dashboard/
+├── src/
+│   ├── app/                    # Next.js App Router
+│   │   ├── api/               # API routes
+│   │   │   ├── shipments/     # Shipment endpoints
+│   │   │   ├── complaints/    # Complaint endpoints
+│   │   │   ├── redeployments/ # Redeployment endpoints
+│   │   │   └── repossessions/ # Repossession endpoints
+│   │   ├── (with-sidebar)/   # Protected routes with sidebar
+│   │   └── auth/             # Authentication pages
+│   ├── components/           # React components
+│   │   ├── ui/              # UI components
+│   │   └── ...              # Feature components
+│   └── lib/                  # Utilities
+│       ├── prisma.ts         # Prisma client
+│       ├── auth.ts           # Auth helpers
+│       └── validations.ts    # Zod schemas
+├── prisma/
+│   ├── schema.prisma        # Database schema
+│   └── migrations/          # Migration files
+├── public/                  # Static files
+├── .env.local              # Environment variables (not in git)
+├── package.json
+├── tailwind.config.js
+└── tsconfig.json
+```
+
+## 🔧 Development
+
+### Available Scripts
+
+```bash
+# Development server with hot reload
 npm run dev
 
-# Build for production
+# Production build
 npm run build
+
+# Start production server
 npm start
+
+# Database operations
+npx prisma studio       # Open Prisma GUI
+npx prisma migrate dev  # Create migration
+npx prisma generate     # Generate client
+
+# Linting
+npm run lint
 ```
 
-## ⚙️ Environment Variables
+### Database Migrations
 
-Create a `.env.local` file (single database setup: **Supabase Postgres via Prisma**):
-
-```env
-# NextAuth
-NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=<your-random-secret-key>
-
-# Prisma datasource vars (used by prisma/schema.prisma)
-POSTGRES_PRISMA_URL=<supabase-pooler-connection-string>
-POSTGRES_URL_NON_POOLING=<supabase-direct-connection-string>
-
-# Optional OAuth
-GITHUB_ID=<your-github-client-id>
-GITHUB_SECRET=<your-github-client-secret>
-```
-
-### Important
-- This project uses **one database only**: Supabase Postgres.
-- Do **not** use mixed DB URLs (like Accelerate/SQLite/other providers) in local setup.
-- Prisma Client reads connection details from `prisma/schema.prisma` env vars above.
-
-## 🚀 Deployment to Vercel
-
-### Step 1: Initialize Git
 ```bash
-git init
-git add .
-git commit -m "Initial commit"
+# Create a new migration
+npx prisma migrate dev --name describe_your_change
+
+# Apply migrations in production
+npx prisma migrate deploy
+
+# Reset database (development only!)
+npx prisma migrate reset
 ```
 
-### Step 2: Push to GitHub
+## 🚢 Deployment
+
+### Vercel (Recommended)
+
+1. **Connect Repository**
+   ```bash
+   vercel login
+   vercel
+   ```
+
+2. **Set Environment Variables**
+   - Go to Vercel Dashboard → Settings → Environment Variables
+   - Add all variables from `.env.local`
+
+3. **Deploy**
+   ```bash
+   vercel --prod
+   ```
+
+### Manual Deployment
+
+See [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) for detailed instructions.
+
+## 🧪 Testing
+
 ```bash
-# Create repository on GitHub first, then:
-git remote add origin <your-repo-url>
-git branch -M main
-git push -u origin main
+# Run all tests
+npm test
+
+# Run specific test file
+npm test -- shipments.test.ts
+
+# Run tests in watch mode
+npm test -- --watch
 ```
 
-### Step 3: Deploy to Vercel
+## 🐛 Debugging
+
+### Database Connection Issues
 ```bash
-# Install Vercel CLI
-npm install -g vercel
+# Test database connection
+npm run test-db
 
-# Login to Vercel
-vercel login
-
-# Deploy
-vercel --prod
+# Check Prisma schema
+npx prisma validate
 ```
 
-Or connect your GitHub repository directly in [Vercel Dashboard](https://vercel.com/new).
+### Common Issues
 
-### Step 4: Configure Environment Variables in Vercel
+1. **"Cannot read properties of undefined"**
+   - Check API response format
+   - Verify authentication token
+   - Check console for errors
 
-1. Go to your project → Settings → Environment Variables
-2. Add the variables from `.env.local` above
-3. Redeploy
+2. **"Database connection failed"**
+   - Verify DATABASE_URL in .env.local
+   - Check if database is accessible
+   - Run `npx prisma generate`
 
-## 🔌 Google Sheets Setup (Optional)
+3. **"Authentication required"**
+   - Clear browser cookies
+   - Re-login to application
+   - Check NEXTAUTH_SECRET
 
-To connect to real Google Sheets data:
+## 📝 API Endpoints
 
-### 1. Create Service Account
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Create a new project
-3. Enable Google Sheets API
-4. Create Service Account
-5. Download JSON credentials
+See [API_DOCUMENTATION.md](./API_DOCUMENTATION.md) for complete API documentation.
 
-### 2. Share Your Google Sheet
-1. Open your Google Sheet
-2. Click "Share"
-3. Add service account email (from credentials JSON)
-4. Grant "Editor" access
+### Quick Reference
 
-### 3. Configure in Dashboard
-Add the following to your environment variables:
-```env
-GOOGLE_SHEETS_SPREADSHEET_ID=<sheet-id-from-url>
-GOOGLE_SHEETS_CREDENTIALS=<base64-of-credentials-json>
-```
-
-### 4. Sheet Structure
-
-Ensure your Google Sheets have these tabs and columns:
-
-**Shipments Tab:**
-| ID | POD Name | Shipping Address | Contact Person | Mobile Number | Peripherals | Order Date | Dispatch Date | Delivery Date | Setup Date | Status | Total Cost |
-
-**Complaints Tab:**
-| ID | POD Name | Complaint Date | Issue Type | Description | Priority | Status | Assigned To | Resolution Date |
-
-**Repossessions Tab:**
-| ID | POD Name | Repo Date | PC Count | Reason | Condition | Storage Location | Status | Remarks |
-
-**Redeployments Tab:**
-| ID | Source Repo | Source POD | Destination POD | PC Count | Ship Date | Delivery Date | Status | Complaint Resolved |
-
-## 📊 Mock Data
-
-The dashboard currently uses mock data for demonstration. To use real data:
-
-1. **Option A**: Connect Google Sheets (see above)
-2. **Option B**: Create an API endpoint that returns your data
-3. **Option C**: Replace the mock data arrays in component files
-
-## 🎨 Customization
-
-### Change Colors
-Edit `tailwind.config.js`:
-
-```javascript
-theme: {
-  extend: {
-    colors: {
-      primary: {
-        50: '#eff6ff',
-        // ... adjust colors
-      }
-    }
-  }
-}
-```
-
-### Add New Status/Types
-Update the `statusColors` or `statusOptions` in the respective page files.
-
-## 📱 Responsive Design
-
-The dashboard is fully responsive:
-- **Desktop** (>1024px): Full layout with all features
-- **Tablet** (768px-1024px): Adapted layout
-- **Mobile** (<768px): Collapsible sidebar, stacked components
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | /api/shipments | List all shipments |
+| POST | /api/shipments | Create shipment |
+| GET | /api/shipments/:id | Get shipment details |
+| PUT | /api/shipments/:id | Update shipment |
+| GET | /api/complaints | List complaints |
+| POST | /api/complaints | Create complaint |
 
 ## 🔒 Security
 
-- Authentication required for all pages
-- GitHub OAuth for secure login
-- Environment variables for sensitive data
-- No hardcoded credentials
+- ✅ All API routes require authentication
+- ✅ Role-based access control (RBAC)
+- ✅ SQL injection prevention (Prisma ORM)
+- ✅ XSS prevention (React)
+- ✅ CSRF protection (NextAuth)
+- ✅ Password hashing (bcrypt)
+- ✅ HTTPS only in production
+
+## 📱 Mobile Support
+
+The dashboard is fully responsive and supports:
+- iOS Safari 14+
+- Android Chrome 90+
+- Responsive breakpoints: 320px - 2560px
+- Touch-friendly UI (44px minimum targets)
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please:
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
 
 ## 📄 License
 
-This project is proprietary to Apni Pathshala.
+This project is proprietary software. All rights reserved.
 
-## 📞 Support
+## 🆘 Support
 
-For questions or issues, contact:
-- **Email**: pranavgorathe@gmail.com
-- **Team**: Computer Management Department
+- **Issues**: [GitHub Issues](https://github.com/dev-pranavgorathe/computer-management-dashboard/issues)
+- **Documentation**: See `/docs` folder
+- **Email**: support@example.com
 
 ---
 
-Built with ❤️ for Apni Pathshala
+**Built with ❤️ using Next.js and Prisma**
