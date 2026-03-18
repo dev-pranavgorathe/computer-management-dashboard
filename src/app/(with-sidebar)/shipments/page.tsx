@@ -181,12 +181,18 @@ export default function ShipmentsPage() {
       if (dateRange.to) params.append('dateTo', dateRange.to)
 
       const response = await fetch(`/api/shipments?${params.toString()}`, { cache: 'no-store' })
-      if (!response.ok) throw new Error('Failed to fetch shipments')
+      if (!response.ok) throw new Error(`Failed to fetch shipments (HTTP ${response.status})`)
 
-      const data = await response.json()
-      setShipments(data.shipments || [])
-      setTotalPages(data.pagination?.totalPages || 1)
-      setTotalRecords(data.pagination?.total || 0)
+      let data: any = null
+      try {
+        data = await response.json()
+      } catch {
+        throw new Error('Shipments API returned non-JSON response')
+      }
+
+      setShipments(data?.shipments || [])
+      setTotalPages(data?.pagination?.totalPages || 1)
+      setTotalRecords(data?.pagination?.total || 0)
       setError(null)
     } catch (err) {
       console.error('Error fetching shipments:', err)
@@ -286,8 +292,15 @@ export default function ShipmentsPage() {
       })
 
       if (!response.ok) {
-        const errorData = await response.json()
-        if (errorData.details && Array.isArray(errorData.details)) {
+        let errorData: any = null
+        try {
+          errorData = await response.json()
+        } catch {
+          // Non-JSON error body (e.g. gateway/protection HTML)
+          throw new Error(`Failed to save shipment (HTTP ${response.status})`)
+        }
+
+        if (errorData?.details && Array.isArray(errorData.details)) {
           const fieldErrors: Record<string, string> = {}
           errorData.details.forEach((detail: { field: string; message: string }) => {
             fieldErrors[detail.field] = detail.message
@@ -295,10 +308,16 @@ export default function ShipmentsPage() {
           setFormErrors(fieldErrors)
           throw new Error('Please fix the highlighted fields')
         }
-        throw new Error(errorData.error || 'Failed to save shipment')
+
+        throw new Error(errorData?.error || `Failed to save shipment (HTTP ${response.status})`)
       }
 
-      const savedShipment = await response.json()
+      let savedShipment: any = null
+      try {
+        savedShipment = await response.json()
+      } catch {
+        savedShipment = null
+      }
       
       // Add custom purpose to list if it's new
       if (formData.purpose === 'OTHER' && formData.customPurpose) {
