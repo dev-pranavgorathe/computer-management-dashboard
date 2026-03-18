@@ -954,9 +954,9 @@ const Overview = ({ shipments, complaints, repos, redeps }) => {
     <div style={{ display:"flex", flexDirection:"column", gap:20, paddingBottom:12 }}>
 
       {/* ══ PAGE HEADER ══════════════════════════════════════════════════════ */}
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
+      <div style={{ display:"flex", flexDirection:"column", gap:12,
         paddingBottom:16, borderBottom:"1px solid #f1f5f9" }}>
-        <div>
+        <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
           <h2 style={{ fontSize:22, fontWeight:800, color:"#0f172a", letterSpacing:"-.04em", margin:0 }}>Overview</h2>
           <p style={{ fontSize:12.5, color:"#94a3b8", marginTop:4, margin:"4px 0 0", fontWeight:400 }}>
             Computer Management Department — Operational Summary
@@ -966,7 +966,7 @@ const Overview = ({ shipments, complaints, repos, redeps }) => {
           style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"10px 20px", borderRadius:9,
             border:"1.5px solid #e2e8f0", background:"#fff", color:"#475569", cursor:"pointer",
             fontFamily:"inherit", fontSize:12.5, fontWeight:600, letterSpacing:"-.01em",
-            boxShadow:"0 1px 3px rgba(15,23,42,.07)", transition:"all .18s" }}
+            boxShadow:"0 1px 3px rgba(15,23,42,.07)", transition:"all .18s", alignSelf:"flex-start" }}
           onMouseOver={e=>{ Object.assign(e.currentTarget.style,{ background:"#eff6ff", borderColor:"#3b82f6", color:"#1d4ed8", boxShadow:"0 4px 14px rgba(59,130,246,.2)" }); }}
           onMouseOut={e=>{  Object.assign(e.currentTarget.style,{ background:"#fff",    borderColor:"#e2e8f0", color:"#475569", boxShadow:"0 1px 3px rgba(15,23,42,.07)" }); }}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
@@ -1089,7 +1089,7 @@ const Overview = ({ shipments, complaints, repos, redeps }) => {
         </div>
 
         {/* Charts row + filter side panel */}
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 260px", gap:14, alignItems:"start", marginBottom:14 }}>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(300px, 1fr))", gap:14, alignItems:"start", marginBottom:14 }}>
 
           {/* ── Chart 1: Shipment Trend ──────────────────────────────────── */}
           <OCard style={{ padding:"20px 22px 18px" }}>
