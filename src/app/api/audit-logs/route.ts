@@ -1,26 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
 import prisma from '@/lib/prisma'
-import { withAuth } from '@/lib/auth-helpers'
 
-export async function GET(request: NextRequest) {
-  return withAuth(request, async (user) => {
-    try {
-      await prisma.$connect()
+export async function GET(req: NextRequest) {
+  try {
+    const session = await getServerSession()
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
-      if (user.role === 'USER') {
-        return NextResponse.json({ error: 'Only viewer/manager/admin can access audit logs' }, { status: 403 })
-      }
+    const { searchParams } = new URL(req.url)
+    const limit = parseInt(searchParams.get('limit') || '50')
+    const offset = parseInt(searchParams.get('offset') || '0')
+    const entityType = searchParams.get('entityType')
+    const action = searchParams.get('action')
+    const userId = searchParams.get('userId')
 
-      const { searchParams } = new URL(request.url)
-      const entityType = searchParams.get('entityType') || undefined
-      const action = searchParams.get('action') || undefined
-      const limit = Math.min(Number(searchParams.get('limit') || 100), 200)
+    const where: any = {}
+    if (entityType) where.entityType = entityType
+    if (action) where.action = action
+    if (userId) where.userId = userId
 
-      const logs = await prisma.auditLog.findMany({
-        where: {
-          ...(entityType ? { entityType } : {}),
-          ...(action ? { action } : {}),
-        },
+    const [logs, total] = await Promise.all([
+      prisma.auditLog.findMany({
+        where,
         include: {
           user: {
             select: { id: true, name: true, email: true, role: true }
@@ -28,14 +31,14 @@ export async function GET(request: NextRequest) {
         },
         orderBy: { createdAt: 'desc' },
         take: limit,
-      })
+        skip: offset,
+      }),
+      prisma.auditLog.count({ where })
+    ])
 
-      return NextResponse.json({ logs })
-    } catch (error) {
-      console.error('Error fetching audit logs:', error)
-      return NextResponse.json({ error: 'Failed to fetch audit logs' }, { status: 500 })
-    } finally {
-      await prisma.$disconnect()
-    }
-  })
+    return NextResponse.json({ logs, total })
+  } catch (error: any) {
+    console.error('Failed to fetch audit logs:', error)
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
 }
