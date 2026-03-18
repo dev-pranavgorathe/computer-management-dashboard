@@ -7,21 +7,24 @@ import {
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  return await getPCController(req, params.id)
+  const { id } = await params
+  return await getPCController(req, id)
 }
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  return await updatePCController(req, params.id)
+  const { id } = await params
+  return await updatePCController(req, id)
 }
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  return await deletePCController(params.id)
+  const { id } = await params
+  return await deletePCController(id)
 }

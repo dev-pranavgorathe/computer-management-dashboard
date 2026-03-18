@@ -52,7 +52,7 @@ model User {
   delegationsReceived Delegation[]         @relation("DelegationTo")
   
   // PC Monitoring Relations
-  assignedPCs         PC[]
+  assignedPCs         PC[]                 @relation("AssignedPCs")
   activityLogs        ActivityLog[]
   websiteLogs         WebsiteUsageLog[]
   blockedWebsites     BlockedWebsite[]     @relation("BlockedBy")
@@ -561,7 +561,7 @@ model BlockedWebsite {
   reason      String?
   category    String?  // SOCIAL, GAMBLING, ADULT, GAMING, etc.
   addedById   String?
-  addedBy     User?    @relation(fields: [addedById], references: [id], onDelete: SetNull)
+  addedBy     User?    @relation(fields: [addedById], references: [id], name: "BlockedBy", onDelete: SetNull)
   
   // Blocking rules
   blockLevel  String   @default("FULL") // FULL, PARTIAL, TIME_BASED

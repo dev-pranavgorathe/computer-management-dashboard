@@ -181,7 +181,7 @@ export default function DashboardOverview() {
             <BarChart data={shipmentStatusData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
               <XAxis dataKey="name" tick={{ fontSize: 12 }} stroke="#94a3b8" />
-              <YAxis tick={{ fontSize: 12 }} stroke="#94a3b8" />
+              <YAxis tick={{ fontSize: 12 }} stroke="#94a3b8" domain={[0, 'auto']} tickCount={6} allowDecimals={false} />
               <Tooltip 
                 contentStyle={{ 
                   backgroundColor: '#fff', 
@@ -203,7 +203,7 @@ export default function DashboardOverview() {
           <LineChart data={trendData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
             <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="#94a3b8" />
-            <YAxis tick={{ fontSize: 12 }} stroke="#94a3b8" />
+            <YAxis tick={{ fontSize: 12 }} stroke="#94a3b8" domain={[0, 'auto']} tickCount={6} allowDecimals={false} />
             <Tooltip />
             <Legend />
             <Line type="monotone" dataKey="shipments" stroke="#3b82f6" strokeWidth={2} name="Shipments" />
