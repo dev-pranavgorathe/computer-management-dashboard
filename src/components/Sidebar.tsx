@@ -23,7 +23,6 @@ import { useState } from 'react'
 
 const navItems = [
   { name: 'Overview', href: '/', icon: LayoutDashboard },
-  { name: 'PCs', href: '/pcs', icon: Monitor },
   { name: 'Shipments', href: '/shipments', icon: Truck },
   { name: 'Complaints', href: '/complaints', icon: AlertCircle },
   { name: 'Repossessions', href: '/repossessions', icon: RefreshCcw },
