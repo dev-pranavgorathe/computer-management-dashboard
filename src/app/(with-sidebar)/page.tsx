@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { TrendingUp, TrendingDown, Package, AlertTriangle, RefreshCw, ArrowRightLeft, CheckCircle, Clock } from 'lucide-react'
+import { TrendingUp, TrendingDown, Package, AlertTriangle, RefreshCw, ArrowRightLeft, CheckCircle, Clock, Database, Loader2 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from 'recharts'
+import { toast } from 'react-hot-toast'
 
 interface DashboardStats {
   shipments: { total: number; byStatus: Record<string, number>; recent: number }
@@ -16,6 +17,7 @@ const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'
 export default function DashboardOverview() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [seeding, setSeeding] = useState(false)
 
   useEffect(() => {
     fetchDashboardStats()
@@ -69,6 +71,25 @@ export default function DashboardOverview() {
     }
   }
 
+  const handleSeedDemoData = async () => {
+    try {
+      setSeeding(true)
+      const res = await fetch('/api/seed-demo', { method: 'POST' })
+      const data = await res.json()
+
+      if (res.ok) {
+        toast.success(`✅ Demo data seeded! ${JSON.stringify(data.stats)}`)
+        fetchDashboardStats()
+      } else {
+        toast.error(data.error || 'Failed to seed demo data')
+      }
+    } catch (error) {
+      toast.error('Failed to seed demo data')
+    } finally {
+      setSeeding(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="p-6 fade-in">
@@ -100,183 +121,172 @@ export default function DashboardOverview() {
     value
   })) : []
 
-  // Monthly trend data (mock for now, can be enhanced with real date grouping)
-  const trendData = [
-    { month: 'Jan', shipments: 12, complaints: 5 },
-    { month: 'Feb', shipments: 19, complaints: 8 },
-    { month: 'Mar', shipments: stats?.shipments.recent || 0, complaints: stats?.complaints.open || 0 },
-  ]
-
   return (
-    <div className="p-6 fade-in">
+    <div className="p-6 lg:p-8 fade-in">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard Overview</h1>
-        <p className="text-gray-500 mt-1">Real-time insights into your computer management operations</p>
+      <div className="mb-8 flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Dashboard Overview</h1>
+          <p className="text-gray-500 mt-1">Monitor your POD network operations</p>
+        </div>
+        {stats && (stats.shipments.total + stats.complaints.total + stats.repossessions.total + stats.redeployments.total) === 0 && (
+          <button
+            onClick={handleSeedDemoData}
+            disabled={seeding}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+          >
+            {seeding ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Seeding...
+              </>
+            ) : (
+              <>
+                <Database className="w-4 h-4" />
+                Seed Demo Data
+              </>
+            )}
+          </button>
+        )}
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <KPICard
-          title="Total Shipments"
-          value={stats?.shipments.total || 0}
-          subtitle={`${stats?.shipments.recent || 0} this week`}
-          icon={<Package className="h-6 w-6" />}
-          color="blue"
-          trend={stats?.shipments.recent && stats.shipments.recent > 0 ? `+${stats.shipments.recent}` : undefined}
-        />
-        <KPICard
-          title="Active Complaints"
-          value={stats?.complaints.open || 0}
-          subtitle={`of ${stats?.complaints.total || 0} total`}
-          icon={<AlertTriangle className="h-6 w-6" />}
-          color="orange"
-        />
-        <KPICard
-          title="Repossessions"
-          value={stats?.repossessions.total || 0}
-          subtitle="In progress"
-          icon={<RefreshCw className="h-6 w-6" />}
-          color="purple"
-        />
-        <KPICard
-          title="Redeployments"
-          value={stats?.redeployments.total || 0}
-          subtitle="Active transfers"
-          icon={<ArrowRightLeft className="h-6 w-6" />}
-          color="green"
-        />
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 bg-blue-100 rounded-lg">
+              <Package className="w-6 h-6 text-blue-600" />
+            </div>
+            <div className="text-right">
+              <div className="text-2xl font-bold text-gray-900">{stats?.shipments.total || 0}</div>
+              <div className="text-sm text-gray-500">Total Shipments</div>
+            </div>
+          </div>
+          <div className="flex items-center text-sm text-green-600">
+            <TrendingUp className="w-4 h-4 mr-1" />
+            <span>{stats?.shipments.recent || 0} in last 7 days</span>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 bg-yellow-100 rounded-lg">
+              <AlertTriangle className="w-6 h-6 text-yellow-600" />
+            </div>
+            <div className="text-right">
+              <div className="text-2xl font-bold text-gray-900">{stats?.complaints.total || 0}</div>
+              <div className="text-sm text-gray-500">Complaints</div>
+            </div>
+          </div>
+          <div className="flex items-center text-sm text-yellow-600">
+            <Clock className="w-4 h-4 mr-1" />
+            <span>{stats?.complaints.open || 0} open</span>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 bg-purple-100 rounded-lg">
+              <RefreshCw className="w-6 h-6 text-purple-600" />
+            </div>
+            <div className="text-right">
+              <div className="text-2xl font-bold text-gray-900">{stats?.repossessions.total || 0}</div>
+              <div className="text-sm text-gray-500">Repossessions</div>
+            </div>
+          </div>
+          <div className="flex items-center text-sm text-purple-600">
+            <ArrowRightLeft className="w-4 h-4 mr-1" />
+            <span>Equipment recovery</span>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 bg-green-100 rounded-lg">
+              <ArrowRightLeft className="w-6 h-6 text-green-600" />
+            </div>
+            <div className="text-right">
+              <div className="text-2xl font-bold text-gray-900">{stats?.redeployments.total || 0}</div>
+              <div className="text-sm text-gray-500">Redeployments</div>
+            </div>
+          </div>
+          <div className="flex items-center text-sm text-green-600">
+            <CheckCircle className="w-4 h-4 mr-1" />
+            <span>Equipment reuse</span>
+          </div>
+        </div>
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-        {/* Pie Chart - Overall Distribution */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Overall Distribution</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={statusData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                outerRadius={100}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {statusData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
+      {stats && (stats.shipments.total + stats.complaints.total + stats.repossessions.total + stats.redeployments.total) > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Overview Pie Chart */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h3 className="text-lg font-semibold mb-4">Operations Overview</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={statusData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {statusData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
 
-        {/* Bar Chart - Shipment Status */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Shipment Status Breakdown</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={shipmentStatusData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis dataKey="name" tick={{ fontSize: 12 }} stroke="#94a3b8" />
-              <YAxis tick={{ fontSize: 12 }} stroke="#94a3b8" domain={[0, 'auto']} tickCount={6} allowDecimals={false} />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: '#fff', 
-                  border: '1px solid #e5e7eb',
-                  borderRadius: '8px',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
-                }} 
-              />
-              <Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          {/* Shipment Status Bar Chart */}
+          {shipmentStatusData.length > 0 && (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold mb-4">Shipment Status</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={shipmentStatusData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="value" fill="#3b82f6" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
-      </div>
+      )}
 
-      {/* Line Chart - Trend */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Monthly Trends</h2>
-        <ResponsiveContainer width="100%" height={250}>
-          <LineChart data={trendData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-            <XAxis dataKey="month" tick={{ fontSize: 12 }} stroke="#94a3b8" />
-            <YAxis tick={{ fontSize: 12 }} stroke="#94a3b8" domain={[0, 'auto']} tickCount={6} allowDecimals={false} />
-            <Tooltip />
-            <Legend />
-            <Line type="monotone" dataKey="shipments" stroke="#3b82f6" strokeWidth={2} name="Shipments" />
-            <Line type="monotone" dataKey="complaints" stroke="#f59e0b" strokeWidth={2} name="Complaints" />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <QuickActionButton href="/shipments" label="Add Shipment" icon={<Package className="h-5 w-5" />} />
-          <QuickActionButton href="/complaints" label="Log Complaint" icon={<AlertTriangle className="h-5 w-5" />} />
-          <QuickActionButton href="/repossessions" label="New Repossession" icon={<RefreshCw className="h-5 w-5" />} />
-          <QuickActionButton href="/redeployments" label="Redeploy Assets" icon={<ArrowRightLeft className="h-5 w-5" />} />
+      {/* Empty State */}
+      {stats && (stats.shipments.total + stats.complaints.total + stats.repossessions.total + stats.redeployments.total) === 0 && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
+          <Database className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-gray-900 mb-2">No Data Yet</h3>
+          <p className="text-gray-500 mb-6">Get started by adding some demo data to see the dashboard in action.</p>
+          <button
+            onClick={handleSeedDemoData}
+            disabled={seeding}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+          >
+            {seeding ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Seeding Demo Data...
+              </>
+            ) : (
+              <>
+                <Database className="w-5 h-5" />
+                Seed Demo Data
+              </>
+            )}
+          </button>
         </div>
-      </div>
+      )}
     </div>
-  )
-}
-
-// KPI Card Component
-function KPICard({ title, value, subtitle, icon, color, trend }: {
-  title: string
-  value: number
-  subtitle?: string
-  icon: React.ReactNode
-  color: 'blue' | 'green' | 'orange' | 'purple'
-  trend?: string
-}) {
-  const colorClasses = {
-    blue: 'bg-blue-50 text-blue-600 border-blue-100',
-    green: 'bg-green-50 text-green-600 border-green-100',
-    orange: 'bg-orange-50 text-orange-600 border-orange-100',
-    purple: 'bg-purple-50 text-purple-600 border-purple-100',
-  }
-
-  return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
-      <div className="flex items-center justify-between mb-4">
-        <div className={`p-3 rounded-lg ${colorClasses[color]}`}>
-          {icon}
-        </div>
-        {trend && (
-          <span className="text-sm font-medium flex items-center gap-1 text-green-600">
-            <TrendingUp className="h-4 w-4" />
-            {trend}
-          </span>
-        )}
-      </div>
-      <p className="text-sm text-gray-500 mb-1">{title}</p>
-      <p className="text-3xl font-bold text-gray-900">{value}</p>
-      {subtitle && <p className="text-xs text-gray-400 mt-1">{subtitle}</p>}
-    </div>
-  )
-}
-
-// Quick Action Button Component
-function QuickActionButton({ href, label, icon }: {
-  href: string
-  label: string
-  icon: React.ReactNode
-}) {
-  return (
-    <a
-      href={href}
-      className="flex items-center gap-3 p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-all group"
-    >
-      <div className="p-2 rounded-lg bg-gray-100 text-gray-600 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
-        {icon}
-      </div>
-      <span className="font-medium text-gray-700 group-hover:text-blue-700">{label}</span>
-    </a>
   )
 }
