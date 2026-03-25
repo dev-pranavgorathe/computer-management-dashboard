@@ -1,12 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  reactStrictMode: true,
   images: {
-    domains: ['images.unsplash.com', 'avatars.githubusercontent.com'],
-  },
-  experimental: {
-    serverActions: {
-      allowedOrigins: ['*.vercel.app', 'localhost:3000'],
-    },
+    domains: ['images.unsplash.com'],
   },
 }
 
