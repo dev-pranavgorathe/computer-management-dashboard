@@ -1,26 +1,23 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { TrendingUp, TrendingDown, Package, AlertTriangle, RefreshCw, ArrowRightLeft, CheckCircle, Clock, Database, Loader2 } from 'lucide-react'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from 'recharts'
+import { TrendingUp, Package, AlertTriangle, RefreshCw, ArrowRightLeft, CheckCircle, Clock, Activity } from 'lucide-react'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend } from 'recharts'
 import { toast } from 'react-hot-toast'
 
-interface DashboardStats {
-  shipments: { total: number; byStatus: Record<string, number>; recent: number }
-  complaints: { total: number; byStatus: Record<string, number>; open: number }
-  repossessions: { total: number; byStatus: Record<string, number> }
-  redeployments: { total: number; byStatus: Record<string, number> }
-}
-
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899']
-
 export default function DashboardOverview() {
-  const [stats, setStats] = useState<DashboardStats | null>(null)
+  const [stats, setStats] = useState({
+    shipments: { total: 0, byStatus: {}, recent: 0 },
+    complaints: { total: 0, byStatus: {}, open: 0 },
+    repossessions: { total: 0, byStatus: {} },
+    redeployments: { total: 0, byStatus: {} },
+  })
   const [loading, setLoading] = useState(true)
-  const [seeding, setSeeding] = useState(false)
+  const [recentActivity, setRecentActivity] = useState<any[]>([])
 
   useEffect(() => {
     fetchDashboardStats()
+    fetchRecentActivity()
   }, [])
 
   const fetchDashboardStats = async () => {
@@ -50,12 +47,9 @@ export default function DashboardOverview() {
         }, {})
       }
 
-      // Calculate recent shipments (last 7 days)
       const weekAgo = new Date()
       weekAgo.setDate(weekAgo.getDate() - 7)
       const recentShipments = shipments.filter((s: any) => new Date(s.createdAt) > weekAgo).length
-
-      // Calculate open complaints
       const openComplaints = complaints.filter((c: any) => c.status === 'OPEN' || c.status === 'IN_PROGRESS').length
 
       setStats({
@@ -71,22 +65,47 @@ export default function DashboardOverview() {
     }
   }
 
-  const handleSeedDemoData = async () => {
+  const fetchRecentActivity = async () => {
     try {
-      setSeeding(true)
-      const res = await fetch('/api/seed-demo', { method: 'POST' })
-      const data = await res.json()
+      // Fetch recent activities from all modules
+      const activities: any[] = []
+      
+      // Get recent shipments
+      const shipmentsRes = await fetch('/api/shipments?limit=3')
+      const shipmentsData = await shipmentsRes.json()
+      const shipments = shipmentsData.shipments || []
+      
+      shipments.forEach((s: any) => {
+        activities.push({
+          type: s.status === 'DELIVERED' ? 'ship_done' : 'ship_new',
+          label: `Shipment ${s.id} - ${s.podName}`,
+          sub: s.status === 'DELIVERED' ? 'Delivered successfully' : 'Order placed',
+          color: s.status === 'DELIVERED' ? '#22c55e' : '#3b82f6',
+          ts: new Date(s.createdAt).toLocaleDateString(),
+        })
+      })
 
-      if (res.ok) {
-        toast.success(`✅ Demo data seeded! ${JSON.stringify(data.stats)}`)
-        fetchDashboardStats()
-      } else {
-        toast.error(data.error || 'Failed to seed demo data')
-      }
+      // Get recent complaints
+      const complaintsRes = await fetch('/api/complaints?limit=3')
+      const complaintsData = await complaintsRes.json()
+      const complaints = complaintsData.complaints || []
+      
+      complaints.forEach((c: any) => {
+        activities.push({
+          type: c.status === 'SOLVED' ? 'comp_solved' : 'comp_new',
+          label: `Complaint ${c.id} - ${c.podName}`,
+          sub: c.status === 'SOLVED' ? 'Issue resolved' : c.issue,
+          color: c.status === 'SOLVED' ? '#22c55e' : '#ef4444',
+          ts: new Date(c.reportedDate || c.createdAt).toLocaleDateString(),
+        })
+      })
+
+      // Sort by timestamp (most recent first)
+      activities.sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
+      
+      setRecentActivity(activities.slice(0, 6))
     } catch (error) {
-      toast.error('Failed to seed demo data')
-    } finally {
-      setSeeding(false)
+      console.error('Failed to fetch activity:', error)
     }
   }
 
@@ -109,45 +128,23 @@ export default function DashboardOverview() {
     )
   }
 
-  const statusData = stats ? [
-    { name: 'Shipments', value: stats.shipments.total, color: COLORS[0] },
-    { name: 'Complaints', value: stats.complaints.total, color: COLORS[1] },
-    { name: 'Repossessions', value: stats.repossessions.total, color: COLORS[2] },
-    { name: 'Redeployments', value: stats.redeployments.total, color: COLORS[3] },
-  ] : []
+  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899']
 
-  const shipmentStatusData = stats ? Object.entries(stats.shipments.byStatus).map(([name, value]) => ({
-    name: name.replace(/_/g, ' '),
-    value
-  })) : []
+  const shipmentTrendData = [
+    { period: 'Jan', shipments: 12, complaints: 3 },
+    { period: 'Feb', shipments: 15, complaints: 5 },
+    { period: 'Mar', shipments: 18, complaints: 2 },
+    { period: 'Apr', shipments: 10, complaints: 4 },
+    { period: 'May', shipments: 22, complaints: 1 },
+    { period: 'Jun', shipments: 25, complaints: 3 },
+  ]
 
   return (
     <div className="p-6 lg:p-8 fade-in">
       {/* Header */}
-      <div className="mb-8 flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard Overview</h1>
-          <p className="text-gray-500 mt-1">Monitor your POD network operations</p>
-        </div>
-        {stats && (stats.shipments.total + stats.complaints.total + stats.repossessions.total + stats.redeployments.total) === 0 && (
-          <button
-            onClick={handleSeedDemoData}
-            disabled={seeding}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-          >
-            {seeding ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Seeding...
-              </>
-            ) : (
-              <>
-                <Database className="w-4 h-4" />
-                Seed Demo Data
-              </>
-            )}
-          </button>
-        )}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">Dashboard Overview</h1>
+        <p className="text-gray-500 mt-1">Monitor your POD network operations</p>
       </div>
 
       {/* Stats Cards */}
@@ -158,13 +155,13 @@ export default function DashboardOverview() {
               <Package className="w-6 h-6 text-blue-600" />
             </div>
             <div className="text-right">
-              <div className="text-2xl font-bold text-gray-900">{stats?.shipments.total || 0}</div>
+              <div className="text-2xl font-bold text-gray-900">{stats.shipments.total}</div>
               <div className="text-sm text-gray-500">Total Shipments</div>
             </div>
           </div>
           <div className="flex items-center text-sm text-green-600">
             <TrendingUp className="w-4 h-4 mr-1" />
-            <span>{stats?.shipments.recent || 0} in last 7 days</span>
+            <span>{stats.shipments.recent} in last 7 days</span>
           </div>
         </div>
 
@@ -174,13 +171,13 @@ export default function DashboardOverview() {
               <AlertTriangle className="w-6 h-6 text-yellow-600" />
             </div>
             <div className="text-right">
-              <div className="text-2xl font-bold text-gray-900">{stats?.complaints.total || 0}</div>
+              <div className="text-2xl font-bold text-gray-900">{stats.complaints.total}</div>
               <div className="text-sm text-gray-500">Complaints</div>
             </div>
           </div>
           <div className="flex items-center text-sm text-yellow-600">
             <Clock className="w-4 h-4 mr-1" />
-            <span>{stats?.complaints.open || 0} open</span>
+            <span>{stats.complaints.open} open</span>
           </div>
         </div>
 
@@ -190,7 +187,7 @@ export default function DashboardOverview() {
               <RefreshCw className="w-6 h-6 text-purple-600" />
             </div>
             <div className="text-right">
-              <div className="text-2xl font-bold text-gray-900">{stats?.repossessions.total || 0}</div>
+              <div className="text-2xl font-bold text-gray-900">{stats.repossessions.total}</div>
               <div className="text-sm text-gray-500">Repossessions</div>
             </div>
           </div>
@@ -206,7 +203,7 @@ export default function DashboardOverview() {
               <ArrowRightLeft className="w-6 h-6 text-green-600" />
             </div>
             <div className="text-right">
-              <div className="text-2xl font-bold text-gray-900">{stats?.redeployments.total || 0}</div>
+              <div className="text-2xl font-bold text-gray-900">{stats.redeployments.total}</div>
               <div className="text-sm text-gray-500">Redeployments</div>
             </div>
           </div>
@@ -217,76 +214,66 @@ export default function DashboardOverview() {
         </div>
       </div>
 
-      {/* Charts */}
-      {stats && (stats.shipments.total + stats.complaints.total + stats.repossessions.total + stats.redeployments.total) > 0 && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Overview Pie Chart */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold mb-4">Operations Overview</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={statusData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {statusData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
+      {/* Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        {/* Shipment Trend */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h3 className="text-lg font-semibold mb-4">Shipment Trend</h3>
+          <ResponsiveContainer width="100%" height={200}>
+            <LineChart data={shipmentTrendData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f8fafc" vertical={false} />
+              <XAxis dataKey="period" tick={{ fill: '#94a3b8', fontSize: 10.5 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: '#94a3b8', fontSize: 10.5 }} axisLine={false} tickLine={false} allowDecimals={false} />
+              <Tooltip />
+              <Line type="monotone" dataKey="shipments" stroke="#3b82f6" strokeWidth={2.5} name="Shipments" dot={{ r: 4, fill: '#fff', stroke: '#3b82f6', strokeWidth: 2.5 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
 
-          {/* Shipment Status Bar Chart */}
-          {shipmentStatusData.length > 0 && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold mb-4">Shipment Status</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={shipmentStatusData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="value" fill="#3b82f6" />
-                </BarChart>
-              </ResponsiveContainer>
+        {/* Complaint Trend */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h3 className="text-lg font-semibold mb-4">Complaint Trend</h3>
+          <ResponsiveContainer width="100%" height={200}>
+            <LineChart data={shipmentTrendData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f8fafc" vertical={false} />
+              <XAxis dataKey="period" tick={{ fill: '#94a3b8', fontSize: 10.5 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: '#94a3b8', fontSize: 10.5 }} axisLine={false} tickLine={false} allowDecimals={false} />
+              <Tooltip />
+              <Legend wrapperStyle={{ fontSize: 11, paddingTop: 10 }} iconType="circle" iconSize={7} />
+              <Line type="monotone" dataKey="complaints" stroke="#ef4444" strokeWidth={2.5} name="Raised" dot={{ r: 4, fill: '#fff', stroke: '#ef4444', strokeWidth: 2.5 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Recent Activity */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold">Recent Activity</h3>
+          <Activity className="w-5 h-5 text-gray-400" />
+        </div>
+        <div className="space-y-3">
+          {recentActivity.length > 0 ? (
+            recentActivity.map((activity, index) => (
+              <div key={index} className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: `${activity.color}14`, border: `1px solid ${activity.color}33` }}>
+                  <div className="w-3 h-3 rounded-full" style={{ background: activity.color }} />
+                </div>
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-gray-900">{activity.label}</div>
+                  <div className="text-xs text-gray-500">{activity.sub}</div>
+                </div>
+                <div className="text-xs text-gray-400">{activity.ts}</div>
+              </div>
+            ))
+          ) : (
+            <div className="text-center py-8 text-gray-400">
+              <Activity className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p>No recent activity</p>
             </div>
           )}
         </div>
-      )}
-
-      {/* Empty State */}
-      {stats && (stats.shipments.total + stats.complaints.total + stats.repossessions.total + stats.redeployments.total) === 0 && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
-          <Database className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">No Data Yet</h3>
-          <p className="text-gray-500 mb-6">Get started by adding some demo data to see the dashboard in action.</p>
-          <button
-            onClick={handleSeedDemoData}
-            disabled={seeding}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-          >
-            {seeding ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                Seeding Demo Data...
-              </>
-            ) : (
-              <>
-                <Database className="w-5 h-5" />
-                Seed Demo Data
-              </>
-            )}
-          </button>
-        </div>
-      )}
+      </div>
     </div>
   )
 }
